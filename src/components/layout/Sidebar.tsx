@@ -25,12 +25,12 @@ export function Sidebar() {
                     <img
                         src={logoDark}
                         alt="Prolific Homecare"
-                        className="h-[40px] w-auto block dark:hidden"
+                        className="h-[60px] w-auto block dark:hidden"
                     />
                     <img
                         src={logoLight}
                         alt="Prolific Homecare"
-                        className="h-[40px] w-auto hidden dark:block"
+                        className="h-[60px] w-auto hidden dark:block"
                     />
                 </div>
             </div>
