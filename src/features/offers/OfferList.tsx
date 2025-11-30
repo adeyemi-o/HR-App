@@ -79,7 +79,7 @@ export function OfferList() {
     const filteredOffers = offers.filter(offer => {
         // Map database status to tab status if needed, or assume they match
         // Assuming 'Pending' in DB maps to 'Pending Approval' tab
-        if (activeTab === 'Pending Approval' && offer.status === 'Pending') return true;
+        if (activeTab === 'Pending Approval' && offer.status === 'Pending_Approval') return true;
         return offer.status === activeTab;
     });
 
@@ -108,7 +108,7 @@ export function OfferList() {
                     <div className="flex overflow-x-auto">
                         {tabs.map((tab) => {
                             const count = offers.filter(o => {
-                                if (tab === 'Pending Approval' && o.status === 'Pending') return true;
+                                if (tab === 'Pending Approval' && o.status === 'Pending_Approval') return true;
                                 return o.status === tab;
                             }).length;
                             return (
@@ -116,8 +116,8 @@ export function OfferList() {
                                     key={tab}
                                     onClick={() => setActiveTab(tab)}
                                     className={`px-6 py-4 border-b-2 transition-colors whitespace-nowrap font-light ${activeTab === tab
-                                            ? 'border-[#7152F3] text-[#7152F3] font-semibold'
-                                            : 'border-transparent text-[#A2A1A8] hover:text-[#16151C] dark:hover:text-white hover:border-[rgba(162,161,168,0.2)]'
+                                        ? 'border-[#7152F3] text-[#7152F3] font-semibold'
+                                        : 'border-transparent text-[#A2A1A8] hover:text-[#16151C] dark:hover:text-white hover:border-[rgba(162,161,168,0.2)]'
                                         }`}
                                 >
                                     {tab} ({count})
@@ -176,7 +176,7 @@ export function OfferList() {
                                             <Eye size={16} />
                                             Preview
                                         </button>
-                                        {(offer.status === 'Draft' || offer.status === 'Pending') && (
+                                        {(offer.status === 'Draft' || offer.status === 'Pending_Approval') && (
                                             <button className="px-4 py-2 bg-white dark:bg-card border border-[rgba(162,161,168,0.2)] text-[#16151C] dark:text-white rounded-lg hover:bg-[rgba(162,161,168,0.05)] transition-colors flex items-center gap-2 font-light">
                                                 <Edit size={16} />
                                                 Edit
@@ -297,7 +297,7 @@ export function OfferList() {
 
                         {/* Actions */}
                         <div className="flex gap-3 pt-4 border-t border-[rgba(162,161,168,0.1)]">
-                            {(selectedOffer.status === 'Pending' || selectedOffer.status === 'Draft') && (
+                            {(selectedOffer.status === 'Pending_Approval' || selectedOffer.status === 'Draft') && (
                                 <>
                                     <button
                                         onClick={() => handleSend(selectedOffer)}
@@ -317,8 +317,8 @@ export function OfferList() {
                                     onClick={() => handleOnboard(selectedOffer)}
                                     disabled={processingId === selectedOffer.id || selectedOffer.applicant?.status === 'Hired'}
                                     className={`flex-1 px-4 py-3 text-white rounded-[10px] transition-colors font-light flex items-center justify-center gap-2 ${selectedOffer.applicant?.status === 'Hired'
-                                            ? 'bg-gray-400 cursor-not-allowed'
-                                            : 'bg-[#22C55E] hover:bg-[rgba(34,197,94,0.9)]'
+                                        ? 'bg-gray-400 cursor-not-allowed'
+                                        : 'bg-[#22C55E] hover:bg-[rgba(34,197,94,0.9)]'
                                         }`}
                                 >
                                     <UserCheck size={18} />

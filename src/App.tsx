@@ -35,7 +35,9 @@ function App() {
               <Route path="offers" element={<OfferList />} />
               <Route path="offers/new" element={<OfferEditor />} />
               <Route path="employees" element={<EmployeeList />} />
-              <Route path="settings" element={<SettingsPage />} />
+              <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+                <Route path="settings" element={<SettingsPage />} />
+              </Route>
             </Route>
           </Route>
 

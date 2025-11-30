@@ -3,7 +3,7 @@ import { applicantService } from '@/services/applicantService';
 import type { Applicant } from '@/types';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { format } from 'date-fns';
-import { Search, Filter, CheckCircle, XCircle, Mail, Phone, FileText, AlertCircle } from 'lucide-react';
+import { Search, Mail, Phone, FileText } from 'lucide-react';
 import { SlideOver } from '@/components/ui/SlideOver';
 
 export function ApplicantList() {

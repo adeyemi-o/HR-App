@@ -1,5 +1,7 @@
 import { supabase } from '@/lib/supabase';
-import type { Employee, Applicant } from '@/types';
+import type { Employee } from '@/types';
+
+import { wordpressService } from '@/services/wordpressService';
 
 export const employeeService = {
     async getEmployees() {
@@ -72,6 +74,28 @@ export const employeeService = {
             .eq('id', applicantId);
 
         if (updateError) console.error('Failed to update applicant status', updateError);
+
+        // 4. Create WordPress User & Assign Group (Integration)
+        try {
+            // Create WP User
+            const wpUser = await wordpressService.createUser(employee as Employee);
+
+            // Update Employee with WP User ID
+            await supabase
+                .from('employees')
+                .update({ wp_user_id: wpUser.id })
+                .eq('id', employee.id);
+
+            // Assign to LearnDash Group (Mock logic for group selection based on position)
+            // In a real app, we'd map Position -> Group ID
+            const defaultGroupId = 123; // Placeholder
+            await wordpressService.assignUserToGroup(wpUser.id, defaultGroupId);
+
+        } catch (wpError) {
+            console.error('Failed to create WordPress user:', wpError);
+            // We don't throw here to avoid rolling back the employee creation, 
+            // but we should probably alert the user or flag the employee record.
+        }
 
         return employee as Employee;
     }

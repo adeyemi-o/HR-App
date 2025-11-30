@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { offerService } from '@/services/offerService';
 import { applicantService } from '@/services/applicantService';
 import type { Applicant } from '@/types';
-import { ArrowLeft, Save, User, Briefcase, DollarSign, Calendar, X } from 'lucide-react';
+import { ArrowLeft, Save, User, Briefcase, DollarSign, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface OfferFormData {

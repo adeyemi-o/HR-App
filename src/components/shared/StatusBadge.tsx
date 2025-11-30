@@ -1,4 +1,4 @@
-import React from 'react';
+
 
 export type StatusType =
     | 'New'
@@ -9,7 +9,7 @@ export type StatusType =
     | 'Rejected'
     | 'Accepted'
     | 'Draft'
-    | 'Pending Approval'
+    | 'Pending_Approval'
     | 'Sent'
     | 'Declined'
     | 'Onboarding'
@@ -37,7 +37,7 @@ export function StatusBadge({ status, size = 'md' }: StatusBadgeProps) {
             case 'Offer':
             case 'Hired':
                 return 'bg-[rgba(113,82,243,0.1)] text-[#7152F3] border-[rgba(113,82,243,0.2)]';
-            case 'Pending Approval':
+            case 'Pending_Approval':
                 return 'bg-[rgba(234,179,8,0.1)] text-[#EAB308] border-[rgba(234,179,8,0.2)]';
             case 'Onboarding':
             case 'Onboarding Started':

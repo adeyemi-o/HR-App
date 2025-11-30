@@ -44,6 +44,7 @@ export interface Employee {
     start_date?: string;
     status: 'Active' | 'Onboarding' | 'Terminated';
     employee_id?: string;
+    wp_user_id?: number;
     created_at: string;
     updated_at: string;
 }

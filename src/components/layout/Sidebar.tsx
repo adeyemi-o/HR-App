@@ -2,6 +2,7 @@ import { LayoutDashboard, Users, FileText, Briefcase, Settings } from 'lucide-re
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { useUserRole } from '@/hooks/useUserRole';
 
 import logoLight from '@/assets/logo-light.png';
 import logoDark from '@/assets/logo-dark.png';
@@ -11,11 +12,14 @@ const navigation = [
     { name: 'Applicants', href: '/applicants', icon: Users },
     { name: 'Offers', href: '/offers', icon: FileText },
     { name: 'Employees', href: '/employees', icon: Briefcase },
-    { name: 'Settings', href: '/settings', icon: Settings },
+    { name: 'Settings', href: '/settings', icon: Settings, adminOnly: true },
 ];
 
 export function Sidebar() {
     const location = useLocation();
+    const { isAdmin } = useUserRole();
+
+    const filteredNavigation = navigation.filter(item => !item.adminOnly || isAdmin);
 
     return (
         <div className="w-[280px] bg-[rgba(162,161,168,0.05)] h-[calc(100vh-40px)] fixed left-5 top-5 bottom-5 flex flex-col rounded-[20px] border border-sidebar-border/10 backdrop-blur-xl">
@@ -38,7 +42,7 @@ export function Sidebar() {
             {/* Navigation */}
             <nav className="px-[30px] flex-1">
                 <ul className="space-y-[10px]">
-                    {navigation.map((item) => {
+                    {filteredNavigation.map((item) => {
                         const isActive = location.pathname === item.href;
                         return (
                             <li key={item.name}>

@@ -1,30 +1,125 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { settingsService } from '@/services/settingsService';
+import { supabase } from '@/lib/supabase';
 import {
     Key,
-    FileText,
-    Users,
+
     Settings as SettingsIcon,
     Save,
-    Plus,
-    Edit,
-    Trash2,
+    Users,
     Eye,
-    EyeOff
+    EyeOff,
+    Plus,
+    X,
+    ChevronDown
 } from 'lucide-react';
-import { mockOfferTemplates, mockHRTeam } from '../../data/mockData';
+import { userService, type UserProfile } from '@/services/userService';
 
-type SettingsTab = 'Integrations' | 'Offer Templates' | 'HR Team' | 'System Settings';
+type SettingsTab = 'Integrations' | 'System Settings' | 'Team';
 
 export function SettingsPage() {
     const [activeTab, setActiveTab] = useState<SettingsTab>('Integrations');
     const [showApiKeys, setShowApiKeys] = useState(false);
+    const [settingsMap, setSettingsMap] = useState<Record<string, string>>({});
+    const [users, setUsers] = useState<UserProfile[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [showInviteModal, setShowInviteModal] = useState(false);
+    const [inviteEmail, setInviteEmail] = useState('');
+    const [inviteLoading, setInviteLoading] = useState(false);
+
+    useEffect(() => {
+        if (activeTab === 'Team') {
+            loadUsers();
+        } else {
+            loadSettings();
+        }
+    }, [activeTab]);
+
+    const loadSettings = async () => {
+        try {
+            const data = await settingsService.getSettings();
+            setSettingsMap(data);
+        } catch (error) {
+            console.error('Failed to load settings', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const loadUsers = async () => {
+        try {
+            setLoading(true);
+            const data = await userService.getUsers();
+            setUsers(data);
+        } catch (error) {
+            console.error('Failed to load users', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSave = async () => {
+        try {
+            await settingsService.updateSettings(settingsMap);
+            alert('Settings saved successfully');
+        } catch (error) {
+            console.error('Failed to save settings', error);
+            alert('Failed to save settings');
+        }
+    };
+
+    const updateSetting = (key: string, value: string) => {
+        setSettingsMap(prev => ({ ...prev, [key]: value }));
+    };
+
+    const handleRoleChange = async (userId: string, newRole: 'admin' | 'staff') => {
+        try {
+            await userService.updateUserRole(userId, newRole);
+            // Optimistic update
+            setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
+            alert('Role updated successfully');
+        } catch (error) {
+            console.error('Failed to update role', error);
+            alert('Failed to update role');
+        }
+    };
+
+    const handleInvite = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setInviteLoading(true);
+        try {
+            const { data, error } = await supabase.functions.invoke('invite-user', {
+                body: { email: inviteEmail }
+            });
+
+            if (error) throw error;
+
+            // Handle 200 OK errors from the function
+            if (data && data.error) {
+                throw new Error(JSON.stringify(data, null, 2));
+            }
+
+            alert('Invitation sent successfully!');
+            setShowInviteModal(false);
+            setInviteEmail('');
+            // Refresh users list
+            loadUsers();
+        } catch (error: any) {
+            console.error('Failed to invite user', error);
+            // Alert the full error object for debugging
+            alert(error.message || JSON.stringify(error, null, 2));
+        } finally {
+            setInviteLoading(false);
+        }
+    };
 
     const tabs: { id: SettingsTab; label: string; icon: any }[] = [
         { id: 'Integrations', label: 'Integrations', icon: Key },
-        { id: 'Offer Templates', label: 'Offer Templates', icon: FileText },
-        { id: 'HR Team', label: 'HR Team', icon: Users },
         { id: 'System Settings', label: 'System Settings', icon: SettingsIcon },
+        { id: 'Team', label: 'Team Management', icon: Users },
     ];
+
+    if (loading) return <div className="p-8 text-center text-[#A2A1A8]">Loading settings...</div>;
 
     return (
         <div className="space-y-6">
@@ -46,8 +141,8 @@ export function SettingsPage() {
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
                                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-[10px] transition-colors font-light ${activeTab === tab.id
-                                            ? 'bg-[rgba(113,82,243,0.05)] text-[#7152F3] font-semibold'
-                                            : 'text-[#16151C] dark:text-[#A2A1A8] hover:bg-[rgba(162,161,168,0.05)] hover:text-[#16151C] dark:hover:text-white'
+                                        ? 'bg-[rgba(113,82,243,0.05)] text-[#7152F3] font-semibold'
+                                        : 'text-[#16151C] dark:text-[#A2A1A8] hover:bg-[rgba(162,161,168,0.05)] hover:text-[#16151C] dark:hover:text-white'
                                         }`}
                                 >
                                     <Icon size={18} strokeWidth={activeTab === tab.id ? 2 : 1.5} />
@@ -87,7 +182,9 @@ export function SettingsPage() {
                                         <label className="block text-sm text-slate-700 dark:text-[#A2A1A8] mb-2">Base ID</label>
                                         <input
                                             type="text"
-                                            defaultValue="appXXXXXXXXXXXXXX"
+                                            value={settingsMap['airtable_base_id'] || ''}
+                                            onChange={(e) => updateSetting('airtable_base_id', e.target.value)}
+                                            placeholder="appXXXXXXXXXXXXXX"
                                             className="w-full px-4 py-2 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-transparent text-[#16151C] dark:text-white"
                                         />
                                     </div>
@@ -96,7 +193,9 @@ export function SettingsPage() {
                                         <div className="relative">
                                             <input
                                                 type={showApiKeys ? 'text' : 'password'}
-                                                defaultValue="keyXXXXXXXXXXXXXX"
+                                                value={settingsMap['airtable_api_key'] || ''}
+                                                onChange={(e) => updateSetting('airtable_api_key', e.target.value)}
+                                                placeholder="keyXXXXXXXXXXXXXX"
                                                 className="w-full px-4 py-2 pr-10 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-transparent text-[#16151C] dark:text-white"
                                             />
                                             <button
@@ -111,7 +210,9 @@ export function SettingsPage() {
                                         <label className="block text-sm text-slate-700 dark:text-[#A2A1A8] mb-2">Table Name</label>
                                         <input
                                             type="text"
-                                            defaultValue="Applicants"
+                                            value={settingsMap['airtable_table_name'] || ''}
+                                            onChange={(e) => updateSetting('airtable_table_name', e.target.value)}
+                                            placeholder="Applicants"
                                             className="w-full px-4 py-2 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-transparent text-[#16151C] dark:text-white"
                                         />
                                     </div>
@@ -135,7 +236,9 @@ export function SettingsPage() {
                                         <label className="block text-sm text-slate-700 dark:text-[#A2A1A8] mb-2">WordPress URL</label>
                                         <input
                                             type="text"
-                                            defaultValue="https://lms.prolifichomecare.com"
+                                            value={settingsMap['wp_api_url'] || ''}
+                                            onChange={(e) => updateSetting('wp_api_url', e.target.value)}
+                                            placeholder="https://lms.prolifichomecare.com"
                                             className="w-full px-4 py-2 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-transparent text-[#16151C] dark:text-white"
                                         />
                                     </div>
@@ -143,7 +246,9 @@ export function SettingsPage() {
                                         <label className="block text-sm text-slate-700 dark:text-[#A2A1A8] mb-2">REST API Username</label>
                                         <input
                                             type="text"
-                                            defaultValue="api_user"
+                                            value={settingsMap['wp_username'] || ''}
+                                            onChange={(e) => updateSetting('wp_username', e.target.value)}
+                                            placeholder="api_user"
                                             className="w-full px-4 py-2 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-transparent text-[#16151C] dark:text-white"
                                         />
                                     </div>
@@ -151,7 +256,9 @@ export function SettingsPage() {
                                         <label className="block text-sm text-slate-700 dark:text-[#A2A1A8] mb-2">Application Password</label>
                                         <input
                                             type={showApiKeys ? 'text' : 'password'}
-                                            defaultValue="xxxx xxxx xxxx xxxx xxxx xxxx"
+                                            value={settingsMap['wp_app_password'] || ''}
+                                            onChange={(e) => updateSetting('wp_app_password', e.target.value)}
+                                            placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"
                                             className="w-full px-4 py-2 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-transparent text-[#16151C] dark:text-white"
                                         />
                                     </div>
@@ -160,7 +267,9 @@ export function SettingsPage() {
                                             <label className="block text-sm text-slate-700 dark:text-[#A2A1A8] mb-2">Caregiver Group ID</label>
                                             <input
                                                 type="text"
-                                                defaultValue="123"
+                                                value={settingsMap['wp_group_caregiver'] || ''}
+                                                onChange={(e) => updateSetting('wp_group_caregiver', e.target.value)}
+                                                placeholder="123"
                                                 className="w-full px-4 py-2 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-transparent text-[#16151C] dark:text-white"
                                             />
                                         </div>
@@ -168,7 +277,9 @@ export function SettingsPage() {
                                             <label className="block text-sm text-slate-700 dark:text-[#A2A1A8] mb-2">Nurse Group ID</label>
                                             <input
                                                 type="text"
-                                                defaultValue="124"
+                                                value={settingsMap['wp_group_nurse'] || ''}
+                                                onChange={(e) => updateSetting('wp_group_nurse', e.target.value)}
+                                                placeholder="124"
                                                 className="w-full px-4 py-2 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-transparent text-[#16151C] dark:text-white"
                                             />
                                         </div>
@@ -192,7 +303,8 @@ export function SettingsPage() {
                                     <div>
                                         <label className="block text-sm text-slate-700 dark:text-[#A2A1A8] mb-2">Offer Approved Webhook</label>
                                         <input
-                                            type="text"
+                                            value={settingsMap['webhook_offer_approved'] || ''}
+                                            onChange={(e) => updateSetting('webhook_offer_approved', e.target.value)}
                                             placeholder="https://hooks.n8n.io/webhook/..."
                                             className="w-full px-4 py-2 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-transparent text-[#16151C] dark:text-white"
                                         />
@@ -200,7 +312,8 @@ export function SettingsPage() {
                                     <div>
                                         <label className="block text-sm text-slate-700 dark:text-[#A2A1A8] mb-2">Employee Onboarded Webhook</label>
                                         <input
-                                            type="text"
+                                            value={settingsMap['webhook_employee_onboarded'] || ''}
+                                            onChange={(e) => updateSetting('webhook_employee_onboarded', e.target.value)}
                                             placeholder="https://hooks.zapier.com/hooks/catch/..."
                                             className="w-full px-4 py-2 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-transparent text-[#16151C] dark:text-white"
                                         />
@@ -209,149 +322,13 @@ export function SettingsPage() {
                             </div>
 
                             <div className="flex justify-end pt-4">
-                                <button className="flex items-center gap-2 px-6 py-2 bg-[#7152F3] text-white rounded-[10px] hover:bg-[rgba(113,82,243,0.9)] transition-colors font-light">
+                                <button
+                                    onClick={handleSave}
+                                    className="flex items-center gap-2 px-6 py-2 bg-[#7152F3] text-white rounded-[10px] hover:bg-[rgba(113,82,243,0.9)] transition-colors font-light"
+                                >
                                     <Save size={18} strokeWidth={1.5} />
                                     Save Changes
                                 </button>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Offer Templates Tab */}
-                    {activeTab === 'Offer Templates' && (
-                        <div className="p-6 space-y-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <h3 className="text-slate-900 dark:text-white">Offer Letter Templates</h3>
-                                    <p className="text-sm text-slate-600 dark:text-[#A2A1A8] mt-1">
-                                        Manage templates for offer letters
-                                    </p>
-                                </div>
-                                <button className="flex items-center gap-2 px-4 py-2 bg-[#7152F3] text-white rounded-[10px] hover:bg-[rgba(113,82,243,0.9)] transition-colors font-light">
-                                    <Plus size={18} strokeWidth={1.5} />
-                                    New Template
-                                </button>
-                            </div>
-
-                            <div className="space-y-4">
-                                {mockOfferTemplates.map((template) => (
-                                    <div key={template.id} className="p-6 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg hover:border-blue-200 transition-colors">
-                                        <div className="flex items-start justify-between">
-                                            <div className="flex-1">
-                                                <h4 className="text-slate-900 dark:text-white mb-2">{template.name}</h4>
-                                                <p className="text-sm text-slate-500 dark:text-[#A2A1A8] mb-3">
-                                                    Last updated: {template.lastUpdated}
-                                                </p>
-                                                <div className="flex flex-wrap gap-2">
-                                                    {template.variables.map((variable) => (
-                                                        <span
-                                                            key={variable}
-                                                            className="px-2 py-1 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 rounded text-sm font-mono"
-                                                        >
-                                                            {variable}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                            <div className="flex gap-2 ml-4">
-                                                <button className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
-                                                    <Edit size={18} />
-                                                </button>
-                                                <button className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
-                                                    <Trash2 size={18} />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-
-                            <div className="p-6 border border-blue-200 bg-blue-50 dark:bg-blue-900/10 dark:border-blue-800 rounded-lg">
-                                <h5 className="text-slate-900 dark:text-white mb-2">Available Variables</h5>
-                                <p className="text-sm text-slate-600 dark:text-[#A2A1A8] mb-3">
-                                    Use these variables in your templates. They will be automatically replaced with actual data.
-                                </p>
-                                <div className="flex flex-wrap gap-2">
-                                    {['{{name}}', '{{position}}', '{{start_date}}', '{{rate}}', '{{license_type}}', '{{department}}'].map((variable) => (
-                                        <span
-                                            key={variable}
-                                            className="px-3 py-1 bg-white dark:bg-card border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 rounded text-sm font-mono"
-                                        >
-                                            {variable}
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* HR Team Tab */}
-                    {activeTab === 'HR Team' && (
-                        <div className="p-6 space-y-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <h3 className="text-slate-900 dark:text-white">HR Team Members</h3>
-                                    <p className="text-sm text-slate-600 dark:text-[#A2A1A8] mt-1">
-                                        Manage HR staff and permissions
-                                    </p>
-                                </div>
-                                <button className="flex items-center gap-2 px-4 py-2 bg-[#7152F3] text-white rounded-[10px] hover:bg-[rgba(113,82,243,0.9)] transition-colors font-light">
-                                    <Plus size={18} strokeWidth={1.5} />
-                                    Add Team Member
-                                </button>
-                            </div>
-
-                            <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead className="bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-[rgba(162,161,168,0.1)]">
-                                        <tr>
-                                            <th className="px-6 py-3 text-left text-xs text-slate-600 dark:text-[#A2A1A8] uppercase tracking-wider">
-                                                Name
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs text-slate-600 dark:text-[#A2A1A8] uppercase tracking-wider">
-                                                Email
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs text-slate-600 dark:text-[#A2A1A8] uppercase tracking-wider">
-                                                Role
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs text-slate-600 dark:text-[#A2A1A8] uppercase tracking-wider">
-                                                Last Active
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs text-slate-600 dark:text-[#A2A1A8] uppercase tracking-wider">
-                                                Actions
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100 dark:divide-[rgba(162,161,168,0.1)]">
-                                        {mockHRTeam.map((member) => (
-                                            <tr key={member.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                                                <td className="px-6 py-4">
-                                                    <p className="text-slate-900 dark:text-white">{member.name}</p>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <span className="text-slate-700 dark:text-[#A2A1A8]">{member.email}</span>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <span className={`px-3 py-1 rounded-full text-sm ${member.role === 'Admin'
-                                                            ? 'bg-purple-100 text-purple-700 border border-purple-200 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-800'
-                                                            : 'bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800'
-                                                        }`}>
-                                                        {member.role}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <span className="text-slate-600 dark:text-[#A2A1A8]">{member.lastActive}</span>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="flex gap-2">
-                                                        <button className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">Edit</button>
-                                                        <button className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300">Remove</button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
                             </div>
                         </div>
                     )}
@@ -374,14 +351,17 @@ export function SettingsPage() {
                                         <label className="block text-sm text-slate-700 dark:text-[#A2A1A8] mb-2">Company Name</label>
                                         <input
                                             type="text"
-                                            defaultValue="Prolific Homecare LLC"
+                                            value={settingsMap['company_name'] || ''}
+                                            onChange={(e) => updateSetting('company_name', e.target.value)}
+                                            placeholder="Prolific Homecare LLC"
                                             className="w-full px-4 py-2 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-transparent text-[#16151C] dark:text-white"
                                         />
                                     </div>
                                     <div>
                                         <label className="block text-sm text-slate-700 dark:text-[#A2A1A8] mb-2">Company Logo URL</label>
                                         <input
-                                            type="text"
+                                            value={settingsMap['company_logo'] || ''}
+                                            onChange={(e) => updateSetting('company_logo', e.target.value)}
                                             placeholder="https://..."
                                             className="w-full px-4 py-2 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-transparent text-[#16151C] dark:text-white"
                                         />
@@ -425,7 +405,9 @@ export function SettingsPage() {
                                         </label>
                                         <input
                                             type="number"
-                                            defaultValue="30"
+                                            value={settingsMap['compliance_alert_days'] || ''}
+                                            onChange={(e) => updateSetting('compliance_alert_days', e.target.value)}
+                                            placeholder="30"
                                             className="w-full px-4 py-2 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-transparent text-[#16151C] dark:text-white"
                                         />
                                         <p className="text-xs text-slate-500 dark:text-[#A2A1A8] mt-1">
@@ -436,10 +418,130 @@ export function SettingsPage() {
                             </div>
 
                             <div className="flex justify-end pt-4">
-                                <button className="flex items-center gap-2 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                                <button
+                                    onClick={handleSave}
+                                    className="flex items-center gap-2 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                                >
                                     <Save size={18} />
                                     Save Settings
                                 </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Team Management Tab */}
+                    {activeTab === 'Team' && (
+                        <div className="space-y-6">
+                            <div className="rounded-[20px] p-6 border border-gray-100 dark:border-[rgba(162,161,168,0.1)]">
+                                <div className="flex items-center justify-between mb-6">
+                                    <div>
+                                        <h2 className="text-lg font-semibold text-[#16151C] dark:text-white">Team Members</h2>
+                                        <p className="text-sm text-[#A2A1A8] font-light mt-1">Manage your team's access and roles</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setShowInviteModal(true)}
+                                        className="flex items-center gap-2 px-4 py-2 bg-[#7152F3] text-white rounded-[10px] hover:bg-[rgba(113,82,243,0.9)] transition-colors font-light"
+                                    >
+                                        <Plus size={18} strokeWidth={1.5} />
+                                        Invite Member
+                                    </button>
+                                </div>
+
+                                <div className="overflow-x-auto">
+                                    <table className="w-full">
+                                        <thead>
+                                            <tr className="border-b border-gray-100 dark:border-[rgba(162,161,168,0.1)]">
+                                                <th className="text-left py-3 px-4 text-sm font-medium text-slate-500 dark:text-[#A2A1A8]">Name</th>
+                                                <th className="text-left py-3 px-4 text-sm font-medium text-slate-500 dark:text-[#A2A1A8]">Email</th>
+                                                <th className="text-left py-3 px-4 text-sm font-medium text-slate-500 dark:text-[#A2A1A8]">Role</th>
+                                                <th className="text-left py-3 px-4 text-sm font-medium text-slate-500 dark:text-[#A2A1A8]">Joined</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {users.map((user) => (
+                                                <tr key={user.id} className="border-b border-gray-100 dark:border-[rgba(162,161,168,0.1)] last:border-0 hover:bg-gray-50 dark:hover:bg-[rgba(162,161,168,0.02)] transition-colors">
+                                                    <td className="py-3 px-4 text-[#16151C] dark:text-white">
+                                                        {user.first_name || '—'} {user.last_name || ''}
+                                                    </td>
+                                                    <td className="py-3 px-4 text-slate-600 dark:text-[#A2A1A8]">{user.email}</td>
+                                                    <td className="py-3 px-4">
+                                                        <div className="relative inline-block">
+                                                            <select
+                                                                value={user.role}
+                                                                onChange={(e) => handleRoleChange(user.id, e.target.value as 'admin' | 'staff')}
+                                                                className="appearance-none pl-3 pr-8 py-1 bg-gray-100 dark:bg-[rgba(162,161,168,0.1)] border-none rounded-md text-sm text-[#16151C] dark:text-white focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                                                            >
+                                                                <option value="staff">Staff</option>
+                                                                <option value="admin">Admin</option>
+                                                            </select>
+                                                            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 dark:text-[#A2A1A8] pointer-events-none" size={14} />
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-slate-600 dark:text-[#A2A1A8] text-sm">
+                                                        {new Date(user.created_at).toLocaleDateString()}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {users.length === 0 && (
+                                                <tr>
+                                                    <td colSpan={4} className="py-8 text-center text-[#A2A1A8]">
+                                                        No team members found.
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Invite Modal */}
+                    {showInviteModal && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                            <div className="w-full max-w-md bg-white dark:bg-[#16151C] rounded-[20px] p-6 shadow-xl border border-gray-100 dark:border-[rgba(162,161,168,0.1)]">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h3 className="text-lg font-semibold text-[#16151C] dark:text-white">Invite Team Member</h3>
+                                    <button
+                                        onClick={() => setShowInviteModal(false)}
+                                        className="text-[#A2A1A8] hover:text-[#16151C] dark:hover:text-white transition-colors"
+                                    >
+                                        <X size={20} />
+                                    </button>
+                                </div>
+
+                                <form onSubmit={handleInvite} className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-[#16151C] dark:text-[#A2A1A8] mb-2">
+                                            Email Address
+                                        </label>
+                                        <input
+                                            type="email"
+                                            required
+                                            value={inviteEmail}
+                                            onChange={(e) => setInviteEmail(e.target.value)}
+                                            placeholder="colleague@company.com"
+                                            className="w-full px-4 py-2 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7152F3] bg-transparent text-[#16151C] dark:text-white"
+                                        />
+                                    </div>
+
+                                    <div className="flex justify-end gap-3 pt-4">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowInviteModal(false)}
+                                            className="px-4 py-2 text-sm font-medium text-[#16151C] dark:text-white hover:bg-gray-100 dark:hover:bg-[rgba(162,161,168,0.1)] rounded-lg transition-colors"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            disabled={inviteLoading}
+                                            className="px-4 py-2 text-sm font-medium text-white bg-[#7152F3] hover:bg-[rgba(113,82,243,0.9)] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                        >
+                                            {inviteLoading ? 'Sending...' : 'Send Invitation'}
+                                        </button>
+                                    </div>
+                                </form>
                             </div>
                         </div>
                     )}

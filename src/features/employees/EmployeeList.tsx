@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { employeeService } from '@/services/employeeService';
+import { wordpressService } from '@/services/wordpressService';
 import type { Employee } from '@/types';
+import type { CourseProgress } from '@/types/wordpress';
 import { format } from 'date-fns';
-import { Search, Filter, User, Mail, Phone, MapPin, Calendar, Building, MoreHorizontal } from 'lucide-react';
+import { Search, Mail, Phone, MapPin, Calendar, Building, MoreHorizontal, BookOpen } from 'lucide-react';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { SlideOver } from '@/components/ui/SlideOver';
 
@@ -13,6 +15,9 @@ export function EmployeeList() {
 
     // UI States
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+    const [courseProgress, setCourseProgress] = useState<CourseProgress[]>([]);
+    const [loadingProgress, setLoadingProgress] = useState(false);
+
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
     const [filterDept, setFilterDept] = useState('all');
@@ -20,6 +25,14 @@ export function EmployeeList() {
     useEffect(() => {
         loadEmployees();
     }, []);
+
+    useEffect(() => {
+        if (selectedEmployee?.wp_user_id) {
+            loadCourseProgress(selectedEmployee.wp_user_id);
+        } else {
+            setCourseProgress([]);
+        }
+    }, [selectedEmployee]);
 
     const loadEmployees = async () => {
         try {
@@ -30,6 +43,18 @@ export function EmployeeList() {
             console.error(err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadCourseProgress = async (userId: number) => {
+        setLoadingProgress(true);
+        try {
+            const progress = await wordpressService.getCourseProgress(userId);
+            setCourseProgress(progress);
+        } catch (err) {
+            console.error('Failed to load course progress', err);
+        } finally {
+            setLoadingProgress(false);
         }
     };
 
@@ -208,6 +233,50 @@ export function EmployeeList() {
                                     <StatusBadge status={selectedEmployee.status} size="sm" />
                                 </div>
                             </div>
+                        </div>
+
+                        {/* Training Progress (New Section) */}
+                        <div>
+                            <h4 className="text-[#16151C] dark:text-white font-medium mb-4 flex items-center gap-2">
+                                <BookOpen size={18} className="text-[#7152F3]" />
+                                Training Progress
+                            </h4>
+                            {loadingProgress ? (
+                                <div className="text-sm text-[#A2A1A8]">Loading progress...</div>
+                            ) : courseProgress.length > 0 ? (
+                                <div className="space-y-4">
+                                    {courseProgress.map((course) => (
+                                        <div key={course.course_id} className="p-4 bg-[rgba(162,161,168,0.02)] rounded-[10px] border border-[rgba(162,161,168,0.1)]">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <span className="text-[#16151C] dark:text-white font-medium text-sm">Course #{course.course_id}</span>
+                                                <span className={`text-xs px-2 py-1 rounded-full ${course.status === 'completed'
+                                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                                    : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                                    }`}>
+                                                    {course.status === 'completed' ? 'Completed' : 'In Progress'}
+                                                </span>
+                                            </div>
+                                            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-2">
+                                                <div
+                                                    className="bg-[#7152F3] h-2 rounded-full transition-all duration-500"
+                                                    style={{ width: `${course.percentage}%` }}
+                                                ></div>
+                                            </div>
+                                            <div className="flex justify-between text-xs text-[#A2A1A8]">
+                                                <span>{course.steps_completed} / {course.steps_total} steps</span>
+                                                <span>{course.percentage}%</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="p-4 bg-[rgba(162,161,168,0.02)] rounded-[10px] border border-[rgba(162,161,168,0.1)] text-center">
+                                    <p className="text-sm text-[#A2A1A8]">No training data available.</p>
+                                    {!selectedEmployee.wp_user_id && (
+                                        <p className="text-xs text-red-400 mt-1">Employee not synced to WordPress.</p>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {/* Contact Information */}
