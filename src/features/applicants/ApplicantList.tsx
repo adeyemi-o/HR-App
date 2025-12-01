@@ -1,37 +1,22 @@
-import { useEffect, useState } from 'react';
-import { applicantService } from '@/services/applicantService';
-import type { Applicant } from '@/types';
+import { useState } from 'react';
+import { useApplicants } from '@/hooks/useApplicants';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { format } from 'date-fns';
-import { Search, Mail, Phone, FileText } from 'lucide-react';
-import { SlideOver } from '@/components/ui/SlideOver';
+import { Search, RefreshCw } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export function ApplicantList() {
-    const [applicants, setApplicants] = useState<Applicant[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const { data: applicants = [], isLoading: loading, error, refetch } = useApplicants();
+    const navigate = useNavigate();
+
+    console.log('ApplicantList: applicants data:', applicants);
+    console.log('ApplicantList: loading:', loading);
+    console.log('ApplicantList: error:', error);
 
     // UI States
-    const [selectedApplicant, setSelectedApplicant] = useState<Applicant | null>(null);
     const [filterStatus, setFilterStatus] = useState('all');
     const [filterRole, setFilterRole] = useState('all');
     const [searchTerm, setSearchTerm] = useState('');
-
-    useEffect(() => {
-        loadApplicants();
-    }, []);
-
-    const loadApplicants = async () => {
-        try {
-            const data = await applicantService.getApplicants();
-            setApplicants(data);
-        } catch (err) {
-            setError('Failed to load applicants');
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const filteredApplicants = applicants.filter(applicant => {
         const matchesStatus = filterStatus === 'all' || applicant.status === filterStatus;
@@ -43,7 +28,7 @@ export function ApplicantList() {
     });
 
     if (loading) return <div className="p-8 text-center text-[#A2A1A8]">Loading applicants...</div>;
-    if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
+    if (error) return <div className="p-8 text-center text-red-500">Failed to load applicants: {error.message}</div>;
 
     return (
         <div className="space-y-6">
@@ -51,10 +36,14 @@ export function ApplicantList() {
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-[#16151C] dark:text-white font-semibold text-xl">Applicants</h1>
-                    <p className="text-[#A2A1A8] font-light text-sm">Manage pre-hire applicants from Airtable</p>
+                    <p className="text-[#A2A1A8] font-light text-sm">Manage pre-hire applicants from JotForm</p>
                 </div>
-                <button className="px-4 py-2 bg-[#7152F3] text-white rounded-[10px] hover:bg-[rgba(113,82,243,0.9)] transition-colors font-light">
-                    Sync from Airtable
+                <button
+                    onClick={() => refetch()}
+                    className="flex items-center gap-2 px-4 py-2 bg-[#7152F3] text-white rounded-[10px] hover:bg-[rgba(113,82,243,0.9)] transition-colors font-light"
+                >
+                    <RefreshCw size={16} />
+                    Refresh List
                 </button>
             </div>
 
@@ -140,7 +129,7 @@ export function ApplicantList() {
                                 <tr
                                     key={applicant.id}
                                     className="hover:bg-[rgba(113,82,243,0.02)] transition-colors cursor-pointer"
-                                    onClick={() => setSelectedApplicant(applicant)}
+                                    onClick={() => navigate(`/applicants/${applicant.id}`)}
                                 >
                                     <td className="px-6 py-4">
                                         <div className="flex flex-col">
@@ -168,7 +157,7 @@ export function ApplicantList() {
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                setSelectedApplicant(applicant);
+                                                navigate(`/applicants/${applicant.id}`);
                                             }}
                                             className="text-[#7152F3] hover:text-[rgba(113,82,243,0.8)] font-light"
                                         >
@@ -188,58 +177,6 @@ export function ApplicantList() {
                     </table>
                 </div>
             </div>
-
-            {/* Applicant Detail Drawer */}
-            <SlideOver
-                isOpen={!!selectedApplicant}
-                onClose={() => setSelectedApplicant(null)}
-                title="Applicant Details"
-                width="lg"
-            >
-                {selectedApplicant && (
-                    <div className="space-y-6">
-                        {/* Contact Info */}
-                        <div>
-                            <h3 className="text-[#16151C] dark:text-white text-lg font-semibold mb-4">
-                                {selectedApplicant.first_name} {selectedApplicant.last_name}
-                            </h3>
-                            <div className="space-y-3">
-                                <div className="flex items-center gap-3 text-[#A2A1A8]">
-                                    <Mail size={18} />
-                                    <span className="text-[#16151C] dark:text-white font-light">{selectedApplicant.email}</span>
-                                </div>
-                                <div className="flex items-center gap-3 text-[#A2A1A8]">
-                                    <Phone size={18} />
-                                    <span className="text-[#16151C] dark:text-white font-light">{selectedApplicant.phone}</span>
-                                </div>
-                                <div className="flex items-center gap-3 text-[#A2A1A8]">
-                                    <FileText size={18} />
-                                    <span className="text-[#16151C] dark:text-white font-light">{selectedApplicant.position_applied}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Status */}
-                        <div>
-                            <h4 className="text-[#16151C] dark:text-white font-medium mb-2">Current Status</h4>
-                            <StatusBadge status={selectedApplicant.status} />
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex gap-3 pt-4 border-t border-[rgba(162,161,168,0.1)]">
-                            <button className="flex-1 px-4 py-2 bg-[#22C55E] text-white rounded-[10px] hover:bg-[rgba(34,197,94,0.9)] transition-colors font-light">
-                                Accept
-                            </button>
-                            <button className="flex-1 px-4 py-2 bg-[#EF4444] text-white rounded-[10px] hover:bg-[rgba(239,68,68,0.9)] transition-colors font-light">
-                                Reject
-                            </button>
-                            <button className="flex-1 px-4 py-2 bg-[#7152F3] text-white rounded-[10px] hover:bg-[rgba(113,82,243,0.9)] transition-colors font-light">
-                                Advance Status
-                            </button>
-                        </div>
-                    </div>
-                )}
-            </SlideOver>
         </div>
     );
 }

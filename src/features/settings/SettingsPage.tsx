@@ -10,8 +10,7 @@ import {
     Eye,
     EyeOff,
     Plus,
-    X,
-    ChevronDown
+    X
 } from 'lucide-react';
 import { userService, type UserProfile } from '@/services/userService';
 
@@ -72,17 +71,6 @@ export function SettingsPage() {
         setSettingsMap(prev => ({ ...prev, [key]: value }));
     };
 
-    const handleRoleChange = async (userId: string, newRole: 'admin' | 'staff') => {
-        try {
-            await userService.updateUserRole(userId, newRole);
-            // Optimistic update
-            setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
-            alert('Role updated successfully');
-        } catch (error) {
-            console.error('Failed to update role', error);
-            alert('Failed to update role');
-        }
-    };
 
     const handleInvite = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -110,6 +98,99 @@ export function SettingsPage() {
             alert(error.message || JSON.stringify(error, null, 2));
         } finally {
             setInviteLoading(false);
+        }
+    };
+
+    // Admin Request Management & User Editing
+    const [requests, setRequests] = useState<any[]>([]);
+    const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+    const [editFormData, setEditFormData] = useState({
+        first_name: '',
+        last_name: '',
+        email: '',
+        phone_number: '',
+        role: 'staff' as 'admin' | 'hr' | 'staff',
+        password: ''
+    });
+    const [editLoading, setEditLoading] = useState(false);
+
+    useEffect(() => {
+        if (activeTab === 'Team') {
+            loadRequests();
+        }
+    }, [activeTab]);
+
+    const loadRequests = async () => {
+        try {
+            const data = await userService.getAllPendingRequests();
+            setRequests(data);
+        } catch (error) {
+            console.error('Failed to load requests', error);
+        }
+    };
+
+    const handleApprove = async (requestId: string) => {
+        if (!confirm('Are you sure you want to approve this request?')) return;
+        try {
+            await userService.approveRequest(requestId);
+            alert('Request approved');
+            loadRequests();
+            loadUsers();
+        } catch (error) {
+            console.error('Failed to approve request', error);
+            alert('Failed to approve request');
+        }
+    };
+
+    const handleReject = async (requestId: string) => {
+        if (!confirm('Are you sure you want to reject this request?')) return;
+        try {
+            await userService.rejectRequest(requestId);
+            alert('Request rejected');
+            loadRequests();
+        } catch (error) {
+            console.error('Failed to reject request', error);
+            alert('Failed to reject request');
+        }
+    };
+
+    const handleEditClick = (user: UserProfile) => {
+        setEditingUser(user);
+        setEditFormData({
+            first_name: user.first_name || '',
+            last_name: user.last_name || '',
+            email: user.email,
+            phone_number: user.phone_number || '',
+            role: user.role,
+            password: ''
+        });
+    };
+
+    const handleUpdateUser = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingUser) return;
+        setEditLoading(true);
+        try {
+            const updates: any = {
+                first_name: editFormData.first_name,
+                last_name: editFormData.last_name,
+                email: editFormData.email,
+                phone_number: editFormData.phone_number,
+                role: editFormData.role
+            };
+            if (editFormData.password) {
+                updates.password = editFormData.password;
+            }
+
+            await userService.adminUpdateUser(editingUser.id, updates);
+            alert('User updated successfully');
+            setEditingUser(null);
+            loadUsers();
+        } catch (error) {
+            console.error('Failed to update user', error);
+            alert('Failed to update user');
+        } finally {
+            setEditLoading(false);
         }
     };
 
@@ -432,6 +513,51 @@ export function SettingsPage() {
                     {/* Team Management Tab */}
                     {activeTab === 'Team' && (
                         <div className="space-y-6">
+                            {/* Pending Requests Section */}
+                            {requests.length > 0 && (
+                                <div className="rounded-[20px] p-6 border border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-900/20">
+                                    <h3 className="text-lg font-semibold text-amber-800 dark:text-amber-500 mb-4">Pending Profile Change Requests</h3>
+                                    <div className="space-y-4">
+                                        {requests.map((req) => (
+                                            <div key={req.id} className="bg-white dark:bg-card p-4 rounded-lg border border-amber-100 dark:border-amber-900/20 flex items-center justify-between">
+                                                <div>
+                                                    <div className="font-medium text-[#16151C] dark:text-white">
+                                                        {req.profiles?.first_name} {req.profiles?.last_name} ({req.profiles?.email})
+                                                    </div>
+                                                    <div className="text-sm text-slate-500 dark:text-[#A2A1A8] mt-1">
+                                                        Requested changes:
+                                                        <ul className="list-disc list-inside mt-1 ml-2">
+                                                            {Object.entries(req.changes).map(([key, value]) => (
+                                                                <li key={key}>
+                                                                    <span className="capitalize">{key.replace('_', ' ')}</span>: <span className="font-medium text-[#16151C] dark:text-white">{String(value)}</span>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                    <div className="text-xs text-slate-400 mt-2">
+                                                        Requested on {new Date(req.created_at).toLocaleDateString()}
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={() => handleApprove(req.id)}
+                                                        className="px-3 py-1.5 bg-emerald-500 text-white text-sm rounded-lg hover:bg-emerald-600 transition-colors"
+                                                    >
+                                                        Approve
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleReject(req.id)}
+                                                        className="px-3 py-1.5 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600 transition-colors"
+                                                    >
+                                                        Reject
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="rounded-[20px] p-6 border border-gray-100 dark:border-[rgba(162,161,168,0.1)]">
                                 <div className="flex items-center justify-between mb-6">
                                     <div>
@@ -455,6 +581,7 @@ export function SettingsPage() {
                                                 <th className="text-left py-3 px-4 text-sm font-medium text-slate-500 dark:text-[#A2A1A8]">Email</th>
                                                 <th className="text-left py-3 px-4 text-sm font-medium text-slate-500 dark:text-[#A2A1A8]">Role</th>
                                                 <th className="text-left py-3 px-4 text-sm font-medium text-slate-500 dark:text-[#A2A1A8]">Joined</th>
+                                                <th className="text-right py-3 px-4 text-sm font-medium text-slate-500 dark:text-[#A2A1A8]">Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -465,26 +592,31 @@ export function SettingsPage() {
                                                     </td>
                                                     <td className="py-3 px-4 text-slate-600 dark:text-[#A2A1A8]">{user.email}</td>
                                                     <td className="py-3 px-4">
-                                                        <div className="relative inline-block">
-                                                            <select
-                                                                value={user.role}
-                                                                onChange={(e) => handleRoleChange(user.id, e.target.value as 'admin' | 'staff')}
-                                                                className="appearance-none pl-3 pr-8 py-1 bg-gray-100 dark:bg-[rgba(162,161,168,0.1)] border-none rounded-md text-sm text-[#16151C] dark:text-white focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                                                            >
-                                                                <option value="staff">Staff</option>
-                                                                <option value="admin">Admin</option>
-                                                            </select>
-                                                            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 dark:text-[#A2A1A8] pointer-events-none" size={14} />
-                                                        </div>
+                                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${user.role === 'admin'
+                                                            ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+                                                            : user.role === 'hr'
+                                                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                                                                : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                                                            }`}>
+                                                            {user.role.toUpperCase()}
+                                                        </span>
                                                     </td>
                                                     <td className="py-3 px-4 text-slate-600 dark:text-[#A2A1A8] text-sm">
                                                         {new Date(user.created_at).toLocaleDateString()}
+                                                    </td>
+                                                    <td className="py-3 px-4 text-right">
+                                                        <button
+                                                            onClick={() => handleEditClick(user)}
+                                                            className="text-[#7152F3] hover:text-[#5b3fd1] font-medium text-sm"
+                                                        >
+                                                            Edit
+                                                        </button>
                                                     </td>
                                                 </tr>
                                             ))}
                                             {users.length === 0 && (
                                                 <tr>
-                                                    <td colSpan={4} className="py-8 text-center text-[#A2A1A8]">
+                                                    <td colSpan={5} className="py-8 text-center text-[#A2A1A8]">
                                                         No team members found.
                                                     </td>
                                                 </tr>
@@ -493,6 +625,107 @@ export function SettingsPage() {
                                     </table>
                                 </div>
                             </div>
+
+                            {/* Edit User Modal */}
+                            {editingUser && (
+                                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                                    <div className="w-full max-w-lg bg-white dark:bg-[#16151C] rounded-[20px] p-6 shadow-xl border border-gray-100 dark:border-[rgba(162,161,168,0.1)] max-h-[90vh] overflow-y-auto">
+                                        <div className="flex items-center justify-between mb-6">
+                                            <h3 className="text-lg font-semibold text-[#16151C] dark:text-white">Edit User</h3>
+                                            <button
+                                                onClick={() => setEditingUser(null)}
+                                                className="text-[#A2A1A8] hover:text-[#16151C] dark:hover:text-white transition-colors"
+                                            >
+                                                <X size={20} />
+                                            </button>
+                                        </div>
+
+                                        <form onSubmit={handleUpdateUser} className="space-y-4">
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-sm font-medium text-[#16151C] dark:text-[#A2A1A8] mb-2">First Name</label>
+                                                    <input
+                                                        type="text"
+                                                        value={editFormData.first_name}
+                                                        onChange={(e) => setEditFormData({ ...editFormData, first_name: e.target.value })}
+                                                        className="w-full px-4 py-2 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg bg-transparent text-[#16151C] dark:text-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-[#16151C] dark:text-[#A2A1A8] mb-2">Last Name</label>
+                                                    <input
+                                                        type="text"
+                                                        value={editFormData.last_name}
+                                                        onChange={(e) => setEditFormData({ ...editFormData, last_name: e.target.value })}
+                                                        className="w-full px-4 py-2 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg bg-transparent text-[#16151C] dark:text-white"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-[#16151C] dark:text-[#A2A1A8] mb-2">Email</label>
+                                                <input
+                                                    type="email"
+                                                    value={editFormData.email}
+                                                    onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                                                    className="w-full px-4 py-2 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg bg-transparent text-[#16151C] dark:text-white"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-[#16151C] dark:text-[#A2A1A8] mb-2">Phone Number</label>
+                                                <input
+                                                    type="tel"
+                                                    value={editFormData.phone_number}
+                                                    onChange={(e) => setEditFormData({ ...editFormData, phone_number: e.target.value })}
+                                                    className="w-full px-4 py-2 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg bg-transparent text-[#16151C] dark:text-white"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-[#16151C] dark:text-[#A2A1A8] mb-2">Role</label>
+                                                <select
+                                                    value={editFormData.role}
+                                                    onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value as 'admin' | 'hr' | 'staff' })}
+                                                    className="w-full px-4 py-2 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg bg-transparent text-[#16151C] dark:text-white"
+                                                >
+                                                    <option value="staff">Staff</option>
+                                                    <option value="hr">HR</option>
+                                                    <option value="admin">Admin</option>
+                                                </select>
+                                            </div>
+
+                                            <div className="pt-4 border-t border-gray-100 dark:border-[rgba(162,161,168,0.1)]">
+                                                <h4 className="text-sm font-medium text-[#16151C] dark:text-white mb-3">Change Password (Optional)</h4>
+                                                <input
+                                                    type="password"
+                                                    value={editFormData.password}
+                                                    onChange={(e) => setEditFormData({ ...editFormData, password: e.target.value })}
+                                                    placeholder="Enter new password to reset"
+                                                    className="w-full px-4 py-2 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg bg-transparent text-[#16151C] dark:text-white"
+                                                />
+                                            </div>
+
+                                            <div className="flex justify-end gap-3 pt-4">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setEditingUser(null)}
+                                                    className="px-4 py-2 text-sm font-medium text-[#16151C] dark:text-white hover:bg-gray-100 dark:hover:bg-[rgba(162,161,168,0.1)] rounded-lg transition-colors"
+                                                >
+                                                    Cancel
+                                                </button>
+                                                <button
+                                                    type="submit"
+                                                    disabled={editLoading}
+                                                    className="px-4 py-2 text-sm font-medium text-white bg-[#7152F3] hover:bg-[rgba(113,82,243,0.9)] rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+                                                >
+                                                    {editLoading ? 'Saving...' : 'Save Changes'}
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 

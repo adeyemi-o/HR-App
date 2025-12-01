@@ -2,7 +2,6 @@ export type ApplicantStatus = 'New' | 'Screening' | 'Interview' | 'Offer' | 'Hir
 
 export interface Applicant {
     id: string;
-    airtable_id?: string;
     first_name: string;
     last_name: string;
     email: string;
@@ -11,7 +10,7 @@ export interface Applicant {
     status: ApplicantStatus;
     resume_url?: string;
     created_at: string;
-    updated_at: string;
+    updated_at?: string;
 }
 
 export type OfferStatus = 'Draft' | 'Pending_Approval' | 'Sent' | 'Accepted' | 'Declined';
