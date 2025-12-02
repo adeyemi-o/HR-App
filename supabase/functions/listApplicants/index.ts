@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -11,13 +12,32 @@ serve(async (req) => {
     }
 
     try {
-        const JOTFORM_API_KEY = Deno.env.get('JOTFORM_API_KEY')
+        // Initialize Supabase Client
+        const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+        const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+        // Fetch Settings
+        const { data: settingsData, error: settingsError } = await supabase
+            .from('settings')
+            .select('key, value')
+
+        if (settingsError) throw new Error(`Failed to fetch settings: ${settingsError.message}`)
+
+        const config = settingsData?.reduce((acc: any, curr: any) => {
+            acc[curr.key] = curr.value
+            return acc
+        }, {}) || {}
+
+        const JOTFORM_API_KEY = config['jotform_api_key']
         if (!JOTFORM_API_KEY) {
-            throw new Error('Missing JOTFORM_API_KEY')
+            throw new Error('Missing JOTFORM_API_KEY in settings')
         }
 
-        // Form ID for "Application Form"
-        const FORM_ID = '241904161216448'
+        const FORM_ID = config['jotform_form_id_application']
+        if (!FORM_ID) {
+            throw new Error('Missing Application Form ID in settings')
+        }
 
         const response = await fetch(`https://api.jotform.com/form/${FORM_ID}/submissions?apiKey=${JOTFORM_API_KEY}&limit=100`, {
             method: 'GET',
@@ -34,22 +54,8 @@ serve(async (req) => {
             throw new Error(`JotForm returned error code: ${data.responseCode} - ${data.message}`)
         }
 
-        // Transform data to a cleaner format
-        // JotForm answers are in `answers` object, keyed by question ID.
-        // We need to map these IDs to readable fields.
-        // Note: You might need to inspect the actual response to get correct QIDs.
-        // For now, I will map common fields based on standard JotForm structure, 
-        // but we might need to adjust QIDs after testing.
-
         const applicants = data.content.map((submission: any) => {
-            // Helper to find answer by checking values or specific QIDs if known
-            // This is a generic mapping strategy. 
-            // Ideally, we should know QIDs: e.g., q3_fullName, q4_email
-
             const answers = submission.answers || {};
-
-            // Attempt to extract fields. 
-            // We look for 'name', 'email', 'phoneNumber', 'position' in the answer types or names
             let firstName = '';
             let lastName = '';
             let email = '';
@@ -77,14 +83,14 @@ serve(async (req) => {
             });
 
             return {
-                id: submission.id, // JotForm Submission ID
+                id: submission.id,
                 created_at: submission.created_at,
                 first_name: firstName,
                 last_name: lastName,
                 email: email,
                 phone: phone,
                 position_applied: position,
-                status: submission.status || 'New', // JotForm status or default
+                status: submission.status || 'New',
                 resume_url: resumeUrl
             };
         });
@@ -93,7 +99,7 @@ serve(async (req) => {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
 
-    } catch (error) {
+    } catch (error: any) {
         return new Response(JSON.stringify({ error: error.message }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 400,

@@ -140,8 +140,15 @@ serve(async (req) => {
             throw new Error(`Failed to create offer: ${offerError.message}`)
         }
 
-        // 6. Send Email via Brevo
-        const BREVO_API_KEY = Deno.env.get('BREVO_API_KEY')
+        // 6. Send Email via Brevo (Using Settings)
+        const { data: settingsData, error: settingsError } = await supabaseAdmin
+            .from('settings')
+            .select('value')
+            .eq('key', 'brevo_api_key')
+            .single()
+
+        const BREVO_API_KEY = settingsData?.value
+
         if (BREVO_API_KEY) {
             console.log(`Sending email to ${email} via Brevo...`)
             const emailResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
@@ -179,18 +186,15 @@ serve(async (req) => {
                 console.log('Email sent successfully via Brevo')
             }
         } else {
-            console.warn('BREVO_API_KEY not found, skipping email send.')
+            console.warn('BREVO_API_KEY not found in settings, skipping email send.')
         }
 
         return new Response(JSON.stringify({ success: true, offer }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("General Error:", error)
-        // Return 200 with error property to avoid client-side generic 400/500 errors if possible, 
-        // matching invite-user pattern for handled errors, but keeping 400/500 for critical ones if preferred.
-        // invite-user returns 200 with error body for logic errors.
         return new Response(JSON.stringify({ error: error.message }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 400,

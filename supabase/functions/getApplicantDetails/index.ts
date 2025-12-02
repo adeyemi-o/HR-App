@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -11,9 +12,26 @@ serve(async (req) => {
     }
 
     try {
-        const JOTFORM_API_KEY = Deno.env.get('JOTFORM_API_KEY')
+        // Initialize Supabase Client
+        const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+        const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+        // Fetch Settings
+        const { data: settingsData, error: settingsError } = await supabase
+            .from('settings')
+            .select('key, value')
+
+        if (settingsError) throw new Error(`Failed to fetch settings: ${settingsError.message}`)
+
+        const config = settingsData?.reduce((acc: any, curr: any) => {
+            acc[curr.key] = curr.value
+            return acc
+        }, {}) || {}
+
+        const JOTFORM_API_KEY = config['jotform_api_key']
         if (!JOTFORM_API_KEY) {
-            throw new Error('Missing JOTFORM_API_KEY')
+            throw new Error('Missing JOTFORM_API_KEY in settings')
         }
 
         const { applicantId, email } = await req.json()
@@ -22,15 +40,18 @@ serve(async (req) => {
             throw new Error('Missing applicantId')
         }
 
-        // Form IDs
+        // Form IDs from Settings
         const FORMS = {
-            APPLICATION: '241904161216448',
-            EMERGENCY: '241904172937460',
-            I9: '241904132956457',
-            VACCINATION: '241903896305461',
-            LICENSES: '241904101484449',
-            BACKGROUND: '241903864179465'
+            APPLICATION: config['jotform_form_id_application'],
+            EMERGENCY: config['jotform_form_id_emergency'],
+            I9: config['jotform_form_id_i9'],
+            VACCINATION: config['jotform_form_id_vaccination'],
+            LICENSES: config['jotform_form_id_licenses'],
+            BACKGROUND: config['jotform_form_id_background']
         }
+
+        // Validate critical form IDs
+        if (!FORMS.APPLICATION) throw new Error('Missing Application Form ID in settings')
 
         // 1. Fetch Main Application Details
         const mainResponse = await fetch(`https://api.jotform.com/submission/${applicantId}?apiKey=${JOTFORM_API_KEY}`)
@@ -83,6 +104,8 @@ serve(async (req) => {
 
         // Helper to fetch submissions for a form and find match by email or name
         const fetchMatchingSubmission = async (formId: string, targetEmail: string, targetName?: any) => {
+            if (!formId) return null; // Skip if form ID not configured
+
             try {
                 // Fetch recent submissions (limit 50 to be safe on rate limits/performance)
                 const url = `https://api.jotform.com/form/${formId}/submissions?apiKey=${JOTFORM_API_KEY}&limit=50&orderby=created_at,desc`
@@ -195,11 +218,11 @@ serve(async (req) => {
             ])
 
             relatedForms = {
-                emergency_contact: { ...emergency, formUrl: `https://form.jotform.com/${FORMS.EMERGENCY}` },
-                i9_eligibility: { ...i9, formUrl: `https://form.jotform.com/${FORMS.I9}` },
-                vaccination: { ...vaccination, formUrl: `https://form.jotform.com/${FORMS.VACCINATION}` },
-                licenses: { ...licenses, formUrl: `https://form.jotform.com/${FORMS.LICENSES}` },
-                background_check: { ...background, formUrl: `https://form.jotform.com/${FORMS.BACKGROUND}` }
+                emergency_contact: emergency ? { ...emergency, formUrl: `https://form.jotform.com/${FORMS.EMERGENCY}` } : null,
+                i9_eligibility: i9 ? { ...i9, formUrl: `https://form.jotform.com/${FORMS.I9}` } : null,
+                vaccination: vaccination ? { ...vaccination, formUrl: `https://form.jotform.com/${FORMS.VACCINATION}` } : null,
+                licenses: licenses ? { ...licenses, formUrl: `https://form.jotform.com/${FORMS.LICENSES}` } : null,
+                background_check: background ? { ...background, formUrl: `https://form.jotform.com/${FORMS.BACKGROUND}` } : null
             }
         }
 

@@ -38,11 +38,24 @@ serve(async (req) => {
             })
         }
 
-        // 3. Send Email via Brevo
-        const BREVO_API_KEY = Deno.env.get('BREVO_API_KEY')
-        if (!BREVO_API_KEY) {
-            throw new Error('BREVO_API_KEY not configured')
+        // 3. Fetch Brevo API Key from Settings (using Service Role)
+        const supabaseAdmin = createClient(
+            Deno.env.get('SUPABASE_URL') ?? '',
+            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+        )
+
+        const { data: settingsData, error: settingsError } = await supabaseAdmin
+            .from('settings')
+            .select('value')
+            .eq('key', 'brevo_api_key')
+            .single()
+
+        if (settingsError || !settingsData?.value) {
+            console.error('Settings Error:', settingsError)
+            throw new Error('Brevo API Key not configured in settings')
         }
+
+        const BREVO_API_KEY = settingsData.value
 
         console.log(`Sending ${formName} request to ${email}...`)
 

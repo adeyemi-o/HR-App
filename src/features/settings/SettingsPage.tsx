@@ -300,6 +300,94 @@ export function SettingsPage() {
                                 </div>
                             </div>
 
+                            {/* JotForm */}
+                            <div className="p-6 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div>
+                                        <h4 className="text-slate-900 dark:text-white">JotForm</h4>
+                                        <p className="text-sm text-slate-500 dark:text-[#A2A1A8]">Form submission sync</p>
+                                    </div>
+                                    <div className={`px-3 py-1 rounded-full text-sm ${settingsMap['jotform_api_key'] ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-700'}`}>
+                                        {settingsMap['jotform_api_key'] ? 'Connected' : 'Not Configured'}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm text-slate-700 dark:text-[#A2A1A8] mb-2">API Key</label>
+                                        <div className="relative">
+                                            <input
+                                                type={showApiKeys ? 'text' : 'password'}
+                                                value={settingsMap['jotform_api_key'] || ''}
+                                                onChange={(e) => updateSetting('jotform_api_key', e.target.value)}
+                                                placeholder="Enter JotForm API Key"
+                                                className="w-full px-4 py-2 pr-10 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-transparent text-[#16151C] dark:text-white"
+                                            />
+                                            <button
+                                                onClick={() => setShowApiKeys(!showApiKeys)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                            >
+                                                {showApiKeys ? <EyeOff size={18} /> : <Eye size={18} />}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {[
+                                            { key: 'jotform_form_id_application', label: 'Application Form ID' },
+                                            { key: 'jotform_form_id_emergency', label: 'Emergency Contact Form ID' },
+                                            { key: 'jotform_form_id_i9', label: 'I-9 Form ID' },
+                                            { key: 'jotform_form_id_vaccination', label: 'Vaccination Form ID' },
+                                            { key: 'jotform_form_id_licenses', label: 'Licenses Form ID' },
+                                            { key: 'jotform_form_id_background', label: 'Background Check Form ID' }
+                                        ].map((field) => (
+                                            <div key={field.key}>
+                                                <label className="block text-sm text-slate-700 dark:text-[#A2A1A8] mb-2">{field.label}</label>
+                                                <input
+                                                    type="text"
+                                                    value={settingsMap[field.key] || ''}
+                                                    onChange={(e) => updateSetting(field.key, e.target.value)}
+                                                    placeholder="2419..."
+                                                    className="w-full px-4 py-2 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-transparent text-[#16151C] dark:text-white"
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Brevo */}
+                            <div className="p-6 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div>
+                                        <h4 className="text-slate-900 dark:text-white">Brevo (Sendinblue)</h4>
+                                        <p className="text-sm text-slate-500 dark:text-[#A2A1A8]">Email delivery service</p>
+                                    </div>
+                                    <div className={`px-3 py-1 rounded-full text-sm ${settingsMap['brevo_api_key'] ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-700'}`}>
+                                        {settingsMap['brevo_api_key'] ? 'Connected' : 'Not Configured'}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm text-slate-700 dark:text-[#A2A1A8] mb-2">API Key</label>
+                                    <div className="relative">
+                                        <input
+                                            type={showApiKeys ? 'text' : 'password'}
+                                            value={settingsMap['brevo_api_key'] || ''}
+                                            onChange={(e) => updateSetting('brevo_api_key', e.target.value)}
+                                            placeholder="xkeysib-..."
+                                            className="w-full px-4 py-2 pr-10 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-transparent text-[#16151C] dark:text-white"
+                                        />
+                                        <button
+                                            onClick={() => setShowApiKeys(!showApiKeys)}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                        >
+                                            {showApiKeys ? <EyeOff size={18} /> : <Eye size={18} />}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
                             {/* WordPress */}
                             <div className="p-6 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg">
                                 <div className="flex items-center justify-between mb-4">
@@ -314,22 +402,22 @@ export function SettingsPage() {
 
                                 <div className="space-y-4">
                                     <div>
-                                        <label className="block text-sm text-slate-700 dark:text-[#A2A1A8] mb-2">WordPress URL</label>
+                                        <label className="block text-sm text-slate-700 dark:text-[#A2A1A8] mb-2">WordPress API URL</label>
                                         <input
                                             type="text"
                                             value={settingsMap['wp_api_url'] || ''}
                                             onChange={(e) => updateSetting('wp_api_url', e.target.value)}
-                                            placeholder="https://lms.prolifichomecare.com"
+                                            placeholder="https://training.yoursite.com/wp-json"
                                             className="w-full px-4 py-2 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-transparent text-[#16151C] dark:text-white"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm text-slate-700 dark:text-[#A2A1A8] mb-2">REST API Username</label>
+                                        <label className="block text-sm text-slate-700 dark:text-[#A2A1A8] mb-2">WordPress Admin Username</label>
                                         <input
                                             type="text"
                                             value={settingsMap['wp_username'] || ''}
                                             onChange={(e) => updateSetting('wp_username', e.target.value)}
-                                            placeholder="api_user"
+                                            placeholder="admin_user"
                                             className="w-full px-4 py-2 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-transparent text-[#16151C] dark:text-white"
                                         />
                                     </div>
@@ -343,27 +431,19 @@ export function SettingsPage() {
                                             className="w-full px-4 py-2 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-transparent text-[#16151C] dark:text-white"
                                         />
                                     </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm text-slate-700 dark:text-[#A2A1A8] mb-2">Caregiver Group ID</label>
-                                            <input
-                                                type="text"
-                                                value={settingsMap['wp_group_caregiver'] || ''}
-                                                onChange={(e) => updateSetting('wp_group_caregiver', e.target.value)}
-                                                placeholder="123"
-                                                className="w-full px-4 py-2 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-transparent text-[#16151C] dark:text-white"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm text-slate-700 dark:text-[#A2A1A8] mb-2">Nurse Group ID</label>
-                                            <input
-                                                type="text"
-                                                value={settingsMap['wp_group_nurse'] || ''}
-                                                onChange={(e) => updateSetting('wp_group_nurse', e.target.value)}
-                                                placeholder="124"
-                                                className="w-full px-4 py-2 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-transparent text-[#16151C] dark:text-white"
-                                            />
-                                        </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-[#16151C] dark:text-white mb-1.5">
+                                            LearnDash Group Map (JSON)
+                                        </label>
+                                        <textarea
+                                            value={settingsMap['learndash_group_map'] || '{}'}
+                                            onChange={(e) => updateSetting('learndash_group_map', e.target.value)}
+                                            className="w-full h-32 px-4 py-2 border border-[rgba(162,161,168,0.1)] rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#7152F3] text-[#16151C] dark:text-white bg-transparent font-mono text-sm"
+                                            placeholder='{ "Nurse": 123, "Caregiver": 456 }'
+                                        />
+                                        <p className="mt-1.5 text-xs text-[#A2A1A8]">
+                                            Map Job Positions to LearnDash Group IDs. Format: <code>"Position Name": [Group IDs]</code>
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -780,6 +860,6 @@ export function SettingsPage() {
                     )}
                 </div>
             </div>
-        </div>
+        </div >
     );
 }
