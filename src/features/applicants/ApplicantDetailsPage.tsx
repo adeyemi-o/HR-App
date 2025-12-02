@@ -21,7 +21,7 @@ export function ApplicantDetailsPage() {
     });
 
     // Document Viewer State
-    const [viewingUrl, setViewingUrl] = useState<string | null>(null);
+    const [viewingDoc, setViewingDoc] = useState<{ url: string; title: string } | null>(null);
 
     // Request Loading State
     const [requestLoading, setRequestLoading] = useState<Record<string, boolean>>({});
@@ -226,7 +226,7 @@ export function ApplicantDetailsPage() {
                                         </div>
                                         {isSubmitted ? (
                                             <button
-                                                onClick={() => setViewingUrl(submission.url)}
+                                                onClick={() => setViewingDoc({ url: submission.url, title: req.label })}
                                                 className="text-[#7152F3] text-sm hover:underline flex items-center gap-1"
                                             >
                                                 View <ExternalLink size={14} />
@@ -336,13 +336,13 @@ export function ApplicantDetailsPage() {
             )}
 
             {/* Document Viewer Modal */}
-            {viewingUrl && (
+            {viewingDoc && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
                     <div className="bg-white dark:bg-[#1C1C24] w-full h-full max-w-6xl rounded-xl overflow-hidden flex flex-col relative">
                         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
-                            <h3 className="text-lg font-semibold text-[#16151C] dark:text-white">Document Viewer</h3>
+                            <h3 className="text-lg font-semibold text-[#16151C] dark:text-white">{viewingDoc.title}</h3>
                             <button
-                                onClick={() => setViewingUrl(null)}
+                                onClick={() => setViewingDoc(null)}
                                 className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
                             >
                                 <X size={24} className="text-[#16151C] dark:text-white" />
@@ -350,9 +350,9 @@ export function ApplicantDetailsPage() {
                         </div>
                         <div className="flex-1 bg-gray-100 dark:bg-gray-900 relative">
                             <iframe
-                                src={viewingUrl}
+                                src={viewingDoc.url}
                                 className="w-full h-full border-0"
-                                title="Document Viewer"
+                                title={viewingDoc.title}
                             />
                         </div>
                     </div>

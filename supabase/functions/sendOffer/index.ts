@@ -1,5 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { render } from "npm:@react-email/render@0.0.7";
+import * as React from "npm:react@18.3.1";
+import { OfferEmail } from "../_shared/emails/OfferEmail.tsx";
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -165,15 +168,15 @@ serve(async (req) => {
                     },
                     to: [{ email: email, name: `${firstName} ${lastName}` }],
                     subject: `Job Offer: ${position} at Prolific Homecare`,
-                    htmlContent: `
-                        <h1>Congratulations ${firstName}!</h1>
-                        <p>We are pleased to offer you the position of <strong>${position}</strong> at Prolific Homecare.</p>
-                        <p><strong>Start Date:</strong> ${startDate}</p>
-                        <p><strong>Salary/Rate:</strong> $${salary}</p>
-                        <br/>
-                        <p>Please review the attached offer details (link coming soon).</p>
-                        <p>Best regards,<br/>Prolific Homecare HR Team</p>
-                    `
+                    htmlContent: await render(
+                        React.createElement(OfferEmail, {
+                            applicantName: `${firstName} ${lastName}`,
+                            position: position,
+                            startDate: startDate,
+                            salary: `$${salary}`,
+                            offerUrl: `https://prolific-hr.com/offers/${offer.secure_token}`
+                        })
+                    )
                 })
             })
 

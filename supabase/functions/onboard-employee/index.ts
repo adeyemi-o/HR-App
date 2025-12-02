@@ -1,5 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { render } from "npm:@react-email/render@0.0.7";
+import * as React from "npm:react@18.3.1";
+import { WelcomeEmail } from "../_shared/emails/WelcomeEmail.tsx";
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -44,7 +47,7 @@ serve(async (req) => {
         const { data: settings, error: settingsError } = await supabaseClient
             .from('settings')
             .select('key, value')
-            .in('key', ['wp_api_url', 'wp_username', 'wp_app_password', 'learndash_group_map'])
+            .in('key', ['wp_api_url', 'wp_username', 'wp_app_password', 'learndash_group_map', 'brevo_api_key'])
 
         if (settingsError) throw new Error(`Settings fetch error: ${settingsError.message}`)
 
@@ -57,6 +60,7 @@ serve(async (req) => {
 
         // 4. Create WordPress User
         const wpAuth = btoa(`${config.wp_username}:${config.wp_app_password}`)
+        const wpPassword = Math.random().toString(36).slice(-10) + "1!"; // Generate random initial password
         const wpUserResponse = await fetch(`${config.wp_api_url}/wp/v2/users`, {
             method: 'POST',
             headers: {
@@ -68,7 +72,7 @@ serve(async (req) => {
                 email: applicant.email,
                 first_name: applicant.first_name,
                 last_name: applicant.last_name,
-                password: Math.random().toString(36).slice(-10) + "1!", // Generate random initial password
+                password: wpPassword,
                 roles: ['subscriber'], // Default role
             }),
         })
@@ -166,6 +170,41 @@ serve(async (req) => {
             // If no employee record yet, maybe create one? 
             // Or just log it. For safety, let's just log it for now as the main goal is WP creation.
             console.log(`No employee record found for applicant ${applicantId} to update wp_user_id`)
+        }
+
+        // 7. Send Welcome Email via Brevo
+        if (config.brevo_api_key) {
+            console.log(`Sending Welcome Email to ${applicant.email}...`)
+            const emailResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
+                method: 'POST',
+                headers: {
+                    'accept': 'application/json',
+                    'api-key': config.brevo_api_key,
+                    'content-type': 'application/json'
+                },
+                body: JSON.stringify({
+                    sender: {
+                        name: 'Prolific Homecare HR',
+                        email: 'admin@prolifichcs.com'
+                    },
+                    to: [{ email: applicant.email, name: `${applicant.first_name} ${applicant.last_name}` }],
+                    subject: `Welcome to Prolific Homecare!`,
+                    htmlContent: await render(
+                        React.createElement(WelcomeEmail, {
+                            applicantName: `${applicant.first_name} ${applicant.last_name}`,
+                            loginUrl: `${config.wp_api_url}/wp-login.php`,
+                            username: applicant.email
+                        })
+                    )
+                })
+            })
+
+            if (!emailResponse.ok) {
+                const errorText = await emailResponse.text()
+                console.error('Brevo API Error (Welcome Email):', errorText)
+            } else {
+                console.log('Welcome Email sent successfully')
+            }
         }
 
         return new Response(
