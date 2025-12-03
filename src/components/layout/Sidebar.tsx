@@ -1,11 +1,13 @@
+import { useState, useEffect } from 'react';
 import { LayoutDashboard, Users, FileText, Briefcase, Settings } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useUserRole } from '@/hooks/useUserRole';
+import { settingsService } from '@/services/settingsService';
 
-import logoLight from '@/assets/logo-light.png';
-import logoDark from '@/assets/logo-dark.png';
+import defaultLogoLight from '@/assets/logo-light.png';
+import defaultLogoDark from '@/assets/logo-dark.png';
 
 const navigation = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -18,6 +20,25 @@ const navigation = [
 export function Sidebar() {
     const location = useLocation();
     const { isAdmin } = useUserRole();
+    // logoForLightMode: Displayed in Light Mode (needs dark logo)
+    const [logoForLightMode, setLogoForLightMode] = useState(defaultLogoDark);
+    // logoForDarkMode: Displayed in Dark Mode (needs light logo)
+    const [logoForDarkMode, setLogoForDarkMode] = useState(defaultLogoLight);
+
+    useEffect(() => {
+        const loadSettings = async () => {
+            try {
+                const settings = await settingsService.getSettings();
+                // settings['logo_light'] is the URL user wants for Light Mode
+                if (settings['logo_light']) setLogoForLightMode(settings['logo_light']);
+                // settings['logo_dark'] is the URL user wants for Dark Mode
+                if (settings['logo_dark']) setLogoForDarkMode(settings['logo_dark']);
+            } catch (error) {
+                console.error('Failed to load logo settings', error);
+            }
+        };
+        loadSettings();
+    }, []);
 
     const filteredNavigation = navigation.filter(item => !item.adminOnly || isAdmin);
 
@@ -25,16 +46,16 @@ export function Sidebar() {
         <div className="w-[280px] bg-[rgba(162,161,168,0.05)] h-[calc(100vh-40px)] fixed left-5 top-5 bottom-5 flex flex-col rounded-[20px] border border-sidebar-border/10 backdrop-blur-xl">
             {/* Logo */}
             <div className="p-[30px]">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-center gap-2">
                     <img
-                        src={logoDark}
+                        src={logoForLightMode}
                         alt="Prolific Homecare"
-                        className="h-[60px] w-auto block dark:hidden"
+                        className="max-h-[60px] w-auto max-w-full block dark:hidden"
                     />
                     <img
-                        src={logoLight}
+                        src={logoForDarkMode}
                         alt="Prolific Homecare"
-                        className="h-[60px] w-auto hidden dark:block"
+                        className="max-h-[60px] w-auto max-w-full hidden dark:block"
                     />
                 </div>
             </div>

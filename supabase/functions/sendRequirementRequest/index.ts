@@ -47,18 +47,22 @@ serve(async (req) => {
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
         )
 
-        const { data: settingsData, error: settingsError } = await supabaseAdmin
+        const { data: settingsList } = await supabaseAdmin
             .from('settings')
-            .select('value')
-            .eq('key', 'brevo_api_key')
-            .single()
+            .select('key, value')
+            .in('key', ['brevo_api_key', 'logo_light'])
 
-        if (settingsError || !settingsData?.value) {
-            console.error('Settings Error:', settingsError)
+        const settingsMap = settingsList?.reduce((acc: any, curr: any) => {
+            acc[curr.key] = curr.value;
+            return acc;
+        }, {} as Record<string, string>) || {};
+
+        const BREVO_API_KEY = settingsMap['brevo_api_key'];
+        const logoUrl = settingsMap['logo_light'];
+
+        if (!BREVO_API_KEY) {
             throw new Error('Brevo API Key not configured in settings')
         }
-
-        const BREVO_API_KEY = settingsData.value
 
         console.log(`Sending ${formName} request to ${email}...`)
 
@@ -80,7 +84,8 @@ serve(async (req) => {
                     React.createElement(RequirementRequestEmail, {
                         applicantName: name || 'Applicant',
                         missingItems: [formName],
-                        uploadUrl: formUrl
+                        uploadUrl: formUrl,
+                        logoUrl: logoUrl || undefined
                     })
                 )
             })

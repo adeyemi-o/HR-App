@@ -8,6 +8,7 @@ import {
     Preview,
     Section,
     Text,
+    Img,
     Tailwind,
 } from "npm:@react-email/components@0.0.22";
 import * as React from "npm:react@18.3.1";
@@ -16,12 +17,14 @@ interface RequirementRequestEmailProps {
     applicantName: string;
     missingItems: string[];
     uploadUrl: string;
+    logoUrl?: string;
 }
 
 export const RequirementRequestEmail = ({
     applicantName = "Applicant",
     missingItems = ["I-9 Form", "Vaccination Record"],
     uploadUrl = "https://prolific-hr.com/upload",
+    logoUrl = "https://placehold.co/150x50/png?text=Prolific+Homecare",
 }: RequirementRequestEmailProps) => {
     return (
         <Html>
@@ -30,6 +33,17 @@ export const RequirementRequestEmail = ({
             <Tailwind>
                 <Body className="bg-white my-auto mx-auto font-sans">
                     <Container className="border border-solid border-[#eaeaea] rounded my-[40px] mx-auto p-[20px] max-w-[465px]">
+                        {logoUrl && (
+                            <Section className="mt-[20px] mb-[20px]">
+                                <Img
+                                    src={logoUrl}
+                                    width="150"
+                                    height="50"
+                                    alt="Prolific Homecare"
+                                    className="mx-auto object-contain"
+                                />
+                            </Section>
+                        )}
                         <Section className="mt-[32px]">
                             <Heading className="text-black text-[24px] font-normal text-center p-0 my-[30px] mx-0">
                                 Action Required

@@ -144,13 +144,18 @@ serve(async (req) => {
         }
 
         // 6. Send Email via Brevo (Using Settings)
-        const { data: settingsData, error: settingsError } = await supabaseAdmin
+        const { data: settingsList } = await supabaseAdmin
             .from('settings')
-            .select('value')
-            .eq('key', 'brevo_api_key')
-            .single()
+            .select('key, value')
+            .in('key', ['brevo_api_key', 'logo_light'])
 
-        const BREVO_API_KEY = settingsData?.value
+        const settingsMap = settingsList?.reduce((acc: any, curr: any) => {
+            acc[curr.key] = curr.value;
+            return acc;
+        }, {} as Record<string, string>) || {};
+
+        const BREVO_API_KEY = settingsMap['brevo_api_key'];
+        const logoUrl = settingsMap['logo_light'];
 
         if (BREVO_API_KEY) {
             console.log(`Sending email to ${email} via Brevo...`)
@@ -173,8 +178,9 @@ serve(async (req) => {
                             applicantName: `${firstName} ${lastName}`,
                             position: position,
                             startDate: startDate,
-                            salary: `$${salary}`,
-                            offerUrl: `https://prolific-hr.com/offers/${offer.secure_token}`
+                            dailyRate: salary, // Mapping salary input to dailyRate as per new template
+                            offerUrl: `https://prolific-hr.com/offers/${offer.secure_token}`,
+                            logoUrl: logoUrl || undefined
                         })
                     )
                 })

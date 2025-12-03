@@ -8,6 +8,7 @@ import {
     Preview,
     Section,
     Text,
+    Img,
     Tailwind,
 } from "@react-email/components";
 import * as React from "react";
@@ -16,12 +17,14 @@ interface WelcomeEmailProps {
     applicantName: string;
     loginUrl: string;
     username: string;
+    logoUrl?: string;
 }
 
 export const WelcomeEmail = ({
     applicantName = "Applicant",
     loginUrl = "https://training.prolific-hr.com/login",
     username = "applicant.user",
+    logoUrl = "https://placehold.co/150x50/png?text=Prolific+Homecare",
 }: WelcomeEmailProps) => {
     return (
         <Html>
@@ -30,6 +33,17 @@ export const WelcomeEmail = ({
             <Tailwind>
                 <Body className="bg-white my-auto mx-auto font-sans">
                     <Container className="border border-solid border-[#eaeaea] rounded my-[40px] mx-auto p-[20px] max-w-[465px]">
+                        {logoUrl && (
+                            <Section className="mt-[20px] mb-[20px]">
+                                <Img
+                                    src={logoUrl}
+                                    width="150"
+                                    height="50"
+                                    alt="Prolific Homecare"
+                                    className="mx-auto object-contain"
+                                />
+                            </Section>
+                        )}
                         <Section className="mt-[32px]">
                             <Heading className="text-black text-[24px] font-normal text-center p-0 my-[30px] mx-0">
                                 Welcome to the Team!

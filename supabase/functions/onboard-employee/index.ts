@@ -47,7 +47,7 @@ serve(async (req) => {
         const { data: settings, error: settingsError } = await supabaseClient
             .from('settings')
             .select('key, value')
-            .in('key', ['wp_api_url', 'wp_username', 'wp_app_password', 'learndash_group_map', 'brevo_api_key'])
+            .in('key', ['wp_api_url', 'wp_username', 'wp_app_password', 'learndash_group_map', 'brevo_api_key', 'logo_light'])
 
         if (settingsError) throw new Error(`Settings fetch error: ${settingsError.message}`)
 
@@ -193,7 +193,8 @@ serve(async (req) => {
                         React.createElement(WelcomeEmail, {
                             applicantName: `${applicant.first_name} ${applicant.last_name}`,
                             loginUrl: `${config.wp_api_url}/wp-login.php`,
-                            username: applicant.email
+                            username: applicant.email,
+                            logoUrl: config.logo_light || undefined
                         })
                     )
                 })

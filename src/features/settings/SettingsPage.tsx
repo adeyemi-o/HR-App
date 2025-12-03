@@ -519,13 +519,28 @@ export function SettingsPage() {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm text-slate-700 dark:text-[#A2A1A8] mb-2">Company Logo URL</label>
+                                        <label className="block text-sm text-slate-700 dark:text-[#A2A1A8] mb-2">Light Mode Logo URL</label>
                                         <input
-                                            value={settingsMap['company_logo'] || ''}
-                                            onChange={(e) => updateSetting('company_logo', e.target.value)}
-                                            placeholder="https://..."
+                                            value={settingsMap['logo_light'] || ''}
+                                            onChange={(e) => updateSetting('logo_light', e.target.value)}
+                                            placeholder="https://.../logo-light.png"
                                             className="w-full px-4 py-2 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-transparent text-[#16151C] dark:text-white"
                                         />
+                                        <p className="text-xs text-slate-500 dark:text-[#A2A1A8] mt-1">
+                                            Used in light mode and emails.
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm text-slate-700 dark:text-[#A2A1A8] mb-2">Dark Mode Logo URL</label>
+                                        <input
+                                            value={settingsMap['logo_dark'] || ''}
+                                            onChange={(e) => updateSetting('logo_dark', e.target.value)}
+                                            placeholder="https://.../logo-dark.png"
+                                            className="w-full px-4 py-2 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-transparent text-[#16151C] dark:text-white"
+                                        />
+                                        <p className="text-xs text-slate-500 dark:text-[#A2A1A8] mt-1">
+                                            Used in dark mode.
+                                        </p>
                                     </div>
                                 </div>
                             </div>

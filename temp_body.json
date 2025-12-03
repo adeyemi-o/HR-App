@@ -1,0 +1,10 @@
+{
+    "applicant": {
+        "first_name": "John",
+        "last_name": "Doe",
+        "skills": [
+            "React",
+            "Node.js"
+        ]
+    }
+}
