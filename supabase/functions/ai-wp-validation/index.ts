@@ -31,7 +31,7 @@ serve(async (req) => {
 
         const result = await aiRequest({
             task: "wp_validation",
-            input: { group, user },
+            input: JSON.stringify({ group, user }),
             tenantId: context.tenantId,
             userId: context.userId,
             feature: "ai-wp-validation"

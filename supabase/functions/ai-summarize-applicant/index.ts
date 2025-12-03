@@ -37,7 +37,7 @@ serve(async (req) => {
 
         const result = await aiRequest({
             task: "summary",
-            input: applicant,
+            input: JSON.stringify(applicant),
             tenantId: context.tenantId,
             userId: context.userId,
             feature: "ai-summarize-applicant"

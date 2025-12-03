@@ -31,7 +31,7 @@ serve(async (req) => {
 
         const result = await aiRequest({
             task: "onboarding_logic",
-            input: { employee, status },
+            input: JSON.stringify({ employee, status }),
             tenantId: context.tenantId,
             userId: context.userId,
             feature: "ai-onboarding-logic"

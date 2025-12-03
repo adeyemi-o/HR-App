@@ -33,7 +33,7 @@ serve(async (req) => {
 
         const result = await aiRequest({
             task: "offer_letter",
-            input: validation.data,
+            input: JSON.stringify(validation.data),
             tenantId: context.tenantId,
             userId: context.userId,
             feature: "ai-draft-offer-letter"

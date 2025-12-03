@@ -31,7 +31,7 @@ serve(async (req) => {
 
         const result = await aiRequest({
             task: "ranking",
-            input: { candidates, job_description },
+            input: JSON.stringify({ candidates, job_description }),
             tenantId: context.tenantId,
             userId: context.userId,
             feature: "ai-rank-applicants"
