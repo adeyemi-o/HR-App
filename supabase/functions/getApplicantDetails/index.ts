@@ -34,7 +34,7 @@ serve(async (req) => {
             throw new Error('Missing JOTFORM_API_KEY in settings')
         }
 
-        const { applicantId, email } = await req.json()
+        const { applicantId } = await req.json()
 
         if (!applicantId) {
             throw new Error('Missing applicantId')
@@ -61,16 +61,32 @@ serve(async (req) => {
         // Helper to extract answers
         const extractAnswers = (submission: any) => {
             const answers: any = {}
+            let generatedResume = "APPLICANT FORM DATA (Treat as Resume):\n\n";
 
             // Handle both single submission response (has .content) and list item (has .answers directly)
             const answersObj = submission.answers || (submission.content && submission.content.answers)
 
-            if (!answersObj) return answers
+            if (!answersObj) return { answers, generatedResume: "" }
 
             Object.values(answersObj).forEach((ans: any) => {
                 // Use the field name if available
                 if (ans.name) {
                     answers[ans.name] = ans.answer
+                }
+
+                // Build Generated Resume from all fields
+                if (ans.text && ans.answer) {
+                    let answerStr = "";
+                    if (typeof ans.answer === 'object') {
+                        // Handle complex fields like grids or lists
+                        answerStr = JSON.stringify(ans.answer, null, 2);
+                    } else {
+                        answerStr = String(ans.answer);
+                    }
+                    // Skip empty answers or system fields
+                    if (answerStr && ans.text !== 'Header' && ans.text !== 'Submit') {
+                        generatedResume += `### ${ans.text}\n${answerStr}\n\n`;
+                    }
                 }
 
                 // Also map by type to ensure we get critical fields even if named differently
@@ -87,11 +103,28 @@ serve(async (req) => {
                 if (!answers['positionApplied'] && (ans.name === 'positionApplied' || (ans.text && ans.text.toLowerCase().includes('position')))) {
                     answers['positionApplied'] = ans.answer;
                 }
+
+                // Map File Uploads (Resume)
+                if (ans.type === 'control_fileupload') {
+                    // JotForm returns file uploads as array of strings (URLs)
+                    const files = Array.isArray(ans.answer) ? ans.answer : [ans.answer];
+                    if (files.length > 0 && files[0]) {
+                        // Check if it looks like a resume
+                        const isResume = ans.name?.toLowerCase().includes('resume') ||
+                            ans.text?.toLowerCase().includes('resume') ||
+                            ans.name?.toLowerCase().includes('cv') ||
+                            ans.text?.toLowerCase().includes('cv');
+
+                        if (isResume || !answers['resume_url']) {
+                            answers['resume_url'] = files[0];
+                        }
+                    }
+                }
             })
-            return answers
+            return { answers, generatedResume }
         }
 
-        const mainAnswers = extractAnswers(mainData)
+        const { answers: mainAnswers, generatedResume } = extractAnswers(mainData)
         const applicantEmail = mainAnswers.email
         const applicantName = mainAnswers.fullName // Object { first, last } or string
 
@@ -123,7 +156,7 @@ serve(async (req) => {
 
                 // Debug: Capture first submission keys and values to see structure
                 if (data.content.length > 0) {
-                    const firstAns = extractAnswers(data.content[0])
+                    const { answers: firstAns } = extractAnswers(data.content[0])
                     debugInfo.forms[formId] = {
                         foundCount: data.content.length,
                         firstSubmissionKeys: Object.keys(firstAns),
@@ -134,7 +167,7 @@ serve(async (req) => {
 
                 // Find match
                 const match = data.content.find((sub: any) => {
-                    const ans = extractAnswers(sub)
+                    const { answers: ans } = extractAnswers(sub)
 
                     // Flatten all values to strings for searching
                     const values = Object.values(ans).map(v =>
@@ -231,6 +264,8 @@ serve(async (req) => {
             created_at: mainData.content.created_at,
             status: mainData.content.status,
             answers: mainAnswers,
+            resume_url: mainAnswers.resume_url || null,
+            resume_text: generatedResume || null,
             ...relatedForms,
             _debug: debugInfo
         }

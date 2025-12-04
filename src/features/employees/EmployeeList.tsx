@@ -7,6 +7,7 @@ import { format } from 'date-fns';
 import { Search, Mail, Phone, MapPin, Calendar, Building, MoreHorizontal, BookOpen } from 'lucide-react';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { SlideOver } from '@/components/ui/SlideOver';
+import { OnboardingSummaryPanel } from '@/components/ai/OnboardingSummaryPanel';
 
 export function EmployeeList() {
     const [employees, setEmployees] = useState<Employee[]>([]);
@@ -234,6 +235,11 @@ export function EmployeeList() {
                                 </div>
                             </div>
                         </div>
+
+                        {/* AI Onboarding Summary */}
+                        {selectedEmployee.status === 'Onboarding' && (
+                            <OnboardingSummaryPanel employee={selectedEmployee} status={selectedEmployee.status} />
+                        )}
 
                         {/* Training Progress (New Section) */}
                         <div>

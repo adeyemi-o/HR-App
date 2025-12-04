@@ -24,6 +24,9 @@ export async function aiRequest(options: AIRequestOptions) {
     const { task, input, tenantId, userId, feature } = options;
     const supabase = getSupabaseClient();
 
+    // Normalize tenant for caching/logging to avoid cross-tenant data leakage
+    const tenantKey = tenantId ?? "public";
+
     // 1️⃣ Rate limiting (per tenant, per minute)
     if (tenantId) {
         const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
@@ -39,11 +42,12 @@ export async function aiRequest(options: AIRequestOptions) {
     }
 
     // 2️⃣ Cache lookup
-    const inputHash = await hashInput(task, input);
+    const inputHash = await hashInput(task, { tenant: tenantKey, input });
 
     const { data: cacheRow, error: cacheError } = await supabase
         .from("ai_cache")
         .select("*")
+        .eq("tenant_id", tenantKey)
         .eq("input_hash", inputHash)
         .maybeSingle();
 
@@ -65,8 +69,42 @@ export async function aiRequest(options: AIRequestOptions) {
     }
 
     // 3️⃣ Call Cloudflare Worker AI Gateway
-    const gatewayUrl = Deno.env.get("AI_GATEWAY_URL") || "https://hr-ai-gateway.gridhouse-digital10.workers.dev";
+    const gatewayUrl = Deno.env.get("AI_GATEWAY_URL") || "https://hr-ai-worker.gridhouse-digital10.workers.dev/";
     const gatewayApiKey = Deno.env.get("AI_GATEWAY_API_KEY"); // stored in Supabase env
+
+    // Helper: Map domain task to worker task
+    const workerTask = (task === "summary" || task === "offer_letter" || task === "general_chat")
+        ? "chat"
+        : (task === "ranking" || task === "onboarding_logic" || task === "wp_validation")
+            ? "reasoning"
+            : task;
+
+    // Helper: Build Worker input
+    let workerInput = input;
+    if (workerTask === "chat" || workerTask === "reasoning") {
+        // If input is already in { messages: ... } format, leave it. 
+        // Otherwise, wrap it.
+        if (!input?.messages) {
+            const content = typeof input === "string" ? input : JSON.stringify(input);
+            workerInput = {
+                messages: [
+                    {
+                        role: "system",
+                        content: "You are Prolific HR Assistant. Reply in clear, HR-friendly language.",
+                    },
+                    {
+                        role: "user",
+                        content,
+                    },
+                ]
+            };
+        }
+    } else if (workerTask === "embedding") {
+        if (!input?.text) {
+            const text = typeof input === "string" ? input : JSON.stringify(input);
+            workerInput = { text };
+        }
+    }
 
     const t0 = Date.now();
     const response = await fetch(gatewayUrl, {
@@ -77,7 +115,7 @@ export async function aiRequest(options: AIRequestOptions) {
             ...(tenantId ? { "x-tenant-id": tenantId } : {}),
             ...(userId ? { "x-user-id": userId } : {})
         },
-        body: JSON.stringify({ task, input })
+        body: JSON.stringify({ task: workerTask, input: workerInput })
     });
 
     const rawText = await response.text();
@@ -133,6 +171,7 @@ export async function aiRequest(options: AIRequestOptions) {
 
     // 5️⃣ Write cache
     await supabase.from("ai_cache").upsert({
+        tenant_id: tenantKey,
         input_hash: inputHash,
         output,
         model,

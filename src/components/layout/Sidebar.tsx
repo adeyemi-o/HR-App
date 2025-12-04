@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { LayoutDashboard, Users, FileText, Briefcase, Settings } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Briefcase, Settings, Sparkles } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -14,6 +14,7 @@ const navigation = [
     { name: 'Applicants', href: '/applicants', icon: Users },
     { name: 'Offers', href: '/offers', icon: FileText },
     { name: 'Employees', href: '/employees', icon: Briefcase },
+    { name: 'AI Dashboard', href: '/admin/ai-dashboard', icon: Sparkles, adminOnly: true },
     { name: 'Settings', href: '/settings', icon: Settings, adminOnly: true },
 ];
 

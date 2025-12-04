@@ -8,13 +8,18 @@ const corsHeaders = {
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-tenant-id",
 }
 
-const schema = z.object({
-    candidate_name: z.string(),
-    position: z.string(),
-    start_date: z.string(),
-    salary_rate: z.string(),
-    manager_name: z.string()
-});
+const schema = z.union([
+    z.object({
+        candidate_name: z.string(),
+        position: z.string(),
+        start_date: z.string(),
+        salary_rate: z.string(),
+        manager_name: z.string()
+    }),
+    z.object({
+        messages: z.array(z.any())
+    })
+]);
 
 serve(async (req) => {
     if (req.method === "OPTIONS") {
@@ -29,11 +34,16 @@ serve(async (req) => {
             throw new Error(`Validation Error: ${JSON.stringify(validation.error.issues)}`)
         }
 
+        // Determine input
+        const input = 'messages' in validation.data
+            ? { messages: validation.data.messages }
+            : validation.data;
+
         const context = await getContext(req)
 
         const result = await aiRequest({
             task: "offer_letter",
-            input: JSON.stringify(validation.data),
+            input: input,
             tenantId: context.tenantId,
             userId: context.userId,
             feature: "ai-draft-offer-letter"

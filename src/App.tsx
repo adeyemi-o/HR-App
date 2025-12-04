@@ -13,6 +13,7 @@ import { OfferPublicView } from '@/features/offers/OfferPublicView';
 
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import { EmployeeList } from '@/features/employees/EmployeeList';
+import { AIDashboardPage } from '@/features/admin/pages/AIDashboardPage';
 
 // Placeholder components for pages
 // const Dashboard = () => <div><h1 className="text-2xl font-bold">Dashboard</h1><p className="mt-4">Welcome to the HR Command Centre.</p></div>;
@@ -44,6 +45,7 @@ function App() {
               <Route path="employees" element={<EmployeeList />} />
               <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
                 <Route path="settings" element={<SettingsPage />} />
+                <Route path="admin/ai-dashboard" element={<AIDashboardPage />} />
               </Route>
               <Route path="profile" element={<ProfilePage />} />
             </Route>

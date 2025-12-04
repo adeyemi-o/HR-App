@@ -1,14 +1,17 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApplicantDetails } from '@/hooks/useApplicantDetails';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { format } from 'date-fns';
 import { ArrowLeft, Mail, Phone, FileText, Calendar, Shield, AlertCircle, CheckCircle, X, ExternalLink } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { ApplicantSummaryPanel } from '@/components/ai/ApplicantSummaryPanel';
 
 export function ApplicantDetailsPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const { data: applicant, isLoading, error } = useApplicantDetails(id);
 
     // Offer Modal State
@@ -129,24 +132,69 @@ export function ApplicantDetailsPage() {
         }
     };
 
+    // Status Update Logic
+    const handleStatusUpdate = async (newStatus: string) => {
+        if (!applicant) return;
+
+        try {
+            const { error } = await supabase
+                .from('applicants')
+                .update({ status: newStatus })
+                .eq('id', applicant.id);
+
+            if (error) throw error;
+
+            await queryClient.invalidateQueries({ queryKey: ['applicant', id] });
+            alert(`Status updated to ${newStatus}`);
+        } catch (err: any) {
+            console.error('Status Update Error:', err);
+            alert('Failed to update status: ' + err.message);
+        }
+    };
+
     return (
         <div className="space-y-6 relative">
             {/* Header */}
-            <div className="flex items-center gap-4">
-                <button
-                    onClick={() => navigate('/applicants')}
-                    className="p-2 hover:bg-[rgba(162,161,168,0.1)] rounded-full transition-colors"
-                >
-                    <ArrowLeft size={24} className="text-[#16151C] dark:text-white" />
-                </button>
-                <div>
-                    <h1 className="text-2xl font-bold text-[#16151C] dark:text-white">
-                        {getAnswer('fullName')?.first} {getAnswer('fullName')?.last}
-                    </h1>
-                    <p className="text-[#A2A1A8] font-light">Applicant Profile</p>
+            <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => navigate('/applicants')}
+                        className="p-2 hover:bg-[rgba(162,161,168,0.1)] rounded-full transition-colors"
+                    >
+                        <ArrowLeft size={24} className="text-[#16151C] dark:text-white" />
+                    </button>
+                    <div>
+                        <h1 className="text-2xl font-bold text-[#16151C] dark:text-white">
+                            {getAnswer('fullName')?.first} {getAnswer('fullName')?.last}
+                        </h1>
+                        <p className="text-[#A2A1A8] font-light">Applicant Profile</p>
+                    </div>
                 </div>
-                <div className="ml-auto">
+
+                <div className="flex items-center gap-3">
                     <StatusBadge status={applicant.status} />
+
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-2 ml-4 border-l border-gray-200 dark:border-gray-700 pl-4">
+                        <button
+                            onClick={() => handleStatusUpdate('rejected')}
+                            className="px-4 py-2 border border-red-200 text-red-600 rounded-[10px] hover:bg-red-50 dark:border-red-900/30 dark:hover:bg-red-900/10 transition-colors text-sm font-medium"
+                        >
+                            Reject
+                        </button>
+                        <button
+                            onClick={() => handleStatusUpdate('interviewing')}
+                            className="px-4 py-2 border border-[rgba(162,161,168,0.2)] text-[#16151C] dark:text-white rounded-[10px] hover:bg-[rgba(162,161,168,0.05)] transition-colors text-sm font-medium"
+                        >
+                            Interview
+                        </button>
+                        <button
+                            onClick={() => setShowOfferModal(true)}
+                            className="px-4 py-2 bg-[#7152F3] text-white rounded-[10px] hover:bg-[rgba(113,82,243,0.9)] transition-colors text-sm font-medium shadow-lg shadow-[#7152F3]/20"
+                        >
+                            Send Offer
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -237,7 +285,7 @@ export function ApplicantDetailsPage() {
                                                 disabled={requestLoading[req.key]}
                                                 className="text-[#7152F3] text-sm hover:underline disabled:opacity-50"
                                             >
-                                                {requestLoading[req.key] ? 'Sending...' : 'Request'}
+                                                Request
                                             </button>
                                         )}
                                     </div>
@@ -249,115 +297,100 @@ export function ApplicantDetailsPage() {
 
                 {/* Sidebar Column */}
                 <div className="space-y-6">
-                    {/* Actions */}
-                    <div className="bg-white dark:bg-card rounded-[20px] border border-[rgba(162,161,168,0.1)] p-6">
-                        <h2 className="text-lg font-semibold text-[#16151C] dark:text-white mb-4">Actions</h2>
-                        <div className="space-y-3">
-                            <button
-                                onClick={() => {
-                                    setOfferForm(prev => ({ ...prev, position: getAnswer('positionApplied') || '' }));
-                                    setShowOfferModal(true);
-                                }}
-                                className="w-full px-4 py-2 bg-[#22C55E] text-white rounded-[10px] hover:bg-[rgba(34,197,94,0.9)] transition-colors font-light"
-                            >
-                                Send Offer
-                            </button>
-                            <button className="w-full px-4 py-2 bg-[#7152F3] text-white rounded-[10px] hover:bg-[rgba(113,82,243,0.9)] transition-colors font-light">
-                                Advance Status
-                            </button>
-                            <button className="w-full px-4 py-2 bg-[#EF4444] text-white rounded-[10px] hover:bg-[rgba(239,68,68,0.9)] transition-colors font-light">
-                                Reject Applicant
-                            </button>
-                        </div>
-                    </div>
+                    <ApplicantSummaryPanel applicant={applicant} />
                 </div>
             </div>
 
             {/* Offer Modal */}
-            {showOfferModal && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-                    <div className="bg-white dark:bg-card w-full max-w-md rounded-[20px] p-6 shadow-xl">
-                        <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-lg font-semibold text-[#16151C] dark:text-white">Send Offer</h3>
-                            <button onClick={() => setShowOfferModal(false)} className="text-[#A2A1A8] hover:text-[#16151C] dark:hover:text-white">
-                                <X size={20} />
-                            </button>
+            {
+                showOfferModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                        <div className="bg-white dark:bg-[#1C1C24] w-full max-w-md rounded-[20px] p-6 shadow-xl">
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-xl font-bold text-[#16151C] dark:text-white">Send Offer Letter</h3>
+                                <button onClick={() => setShowOfferModal(false)} className="text-[#A2A1A8] hover:text-[#16151C] dark:hover:text-white">
+                                    <X size={24} />
+                                </button>
+                            </div>
+
+                            <form onSubmit={handleSendOffer} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-[#16151C] dark:text-white mb-1">Position Title</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={offerForm.position}
+                                        onChange={e => setOfferForm(prev => ({ ...prev, position: e.target.value }))}
+                                        className="w-full px-4 py-2 border border-[rgba(162,161,168,0.1)] rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#7152F3] bg-transparent text-[#16151C] dark:text-white"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-[#16151C] dark:text-white mb-1">Annual Salary / Hourly Rate</label>
+                                    <input
+                                        type="number"
+                                        required
+                                        value={offerForm.salary}
+                                        onChange={e => setOfferForm(prev => ({ ...prev, salary: e.target.value }))}
+                                        className="w-full px-4 py-2 border border-[rgba(162,161,168,0.1)] rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#7152F3] bg-transparent text-[#16151C] dark:text-white"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-[#16151C] dark:text-white mb-1">Start Date</label>
+                                    <input
+                                        type="date"
+                                        required
+                                        value={offerForm.startDate}
+                                        onChange={e => setOfferForm(prev => ({ ...prev, startDate: e.target.value }))}
+                                        className="w-full px-4 py-2 border border-[rgba(162,161,168,0.1)] rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#7152F3] bg-transparent text-[#16151C] dark:text-white"
+                                    />
+                                </div>
+                                <div className="pt-4 flex gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowOfferModal(false)}
+                                        className="flex-1 px-4 py-2 border border-[rgba(162,161,168,0.1)] rounded-[10px] text-[#16151C] dark:text-white hover:bg-[rgba(162,161,168,0.05)]"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={offerLoading}
+                                        className="flex-1 px-4 py-2 bg-[#7152F3] text-white rounded-[10px] hover:bg-[rgba(113,82,243,0.9)] disabled:opacity-50"
+                                    >
+                                        {offerLoading ? 'Sending...' : 'Send Offer'}
+                                    </button>
+                                </div>
+                            </form>
                         </div>
-                        <form onSubmit={handleSendOffer} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-[#16151C] dark:text-white mb-1">Position Title</label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={offerForm.position}
-                                    onChange={e => setOfferForm(prev => ({ ...prev, position: e.target.value }))}
-                                    className="w-full px-4 py-2 border border-[rgba(162,161,168,0.1)] rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#7152F3] bg-transparent"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-[#16151C] dark:text-white mb-1">Annual Salary / Hourly Rate</label>
-                                <input
-                                    type="number"
-                                    required
-                                    value={offerForm.salary}
-                                    onChange={e => setOfferForm(prev => ({ ...prev, salary: e.target.value }))}
-                                    className="w-full px-4 py-2 border border-[rgba(162,161,168,0.1)] rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#7152F3] bg-transparent"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-[#16151C] dark:text-white mb-1">Start Date</label>
-                                <input
-                                    type="date"
-                                    required
-                                    value={offerForm.startDate}
-                                    onChange={e => setOfferForm(prev => ({ ...prev, startDate: e.target.value }))}
-                                    className="w-full px-4 py-2 border border-[rgba(162,161,168,0.1)] rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#7152F3] bg-transparent"
-                                />
-                            </div>
-                            <div className="pt-4 flex gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowOfferModal(false)}
-                                    className="flex-1 px-4 py-2 border border-[rgba(162,161,168,0.1)] rounded-[10px] text-[#16151C] dark:text-white hover:bg-[rgba(162,161,168,0.05)]"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={offerLoading}
-                                    className="flex-1 px-4 py-2 bg-[#7152F3] text-white rounded-[10px] hover:bg-[rgba(113,82,243,0.9)] disabled:opacity-50"
-                                >
-                                    {offerLoading ? 'Sending...' : 'Send Offer'}
-                                </button>
-                            </div>
-                        </form>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Document Viewer Modal */}
-            {viewingDoc && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-                    <div className="bg-white dark:bg-[#1C1C24] w-full h-full max-w-6xl rounded-xl overflow-hidden flex flex-col relative">
-                        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
-                            <h3 className="text-lg font-semibold text-[#16151C] dark:text-white">{viewingDoc.title}</h3>
-                            <button
-                                onClick={() => setViewingDoc(null)}
-                                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
-                            >
-                                <X size={24} className="text-[#16151C] dark:text-white" />
-                            </button>
-                        </div>
-                        <div className="flex-1 bg-gray-100 dark:bg-gray-900 relative">
-                            <iframe
-                                src={viewingDoc.url}
-                                className="w-full h-full border-0"
-                                title={viewingDoc.title}
-                            />
+            {
+                viewingDoc && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+                        <div className="bg-white dark:bg-[#1C1C24] w-full h-full max-w-6xl rounded-xl overflow-hidden flex flex-col relative">
+                            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
+                                <h3 className="text-lg font-semibold text-[#16151C] dark:text-white">{viewingDoc.title}</h3>
+                                <button
+                                    onClick={() => setViewingDoc(null)}
+                                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+                                >
+                                    <X size={24} className="text-[#16151C] dark:text-white" />
+                                </button>
+                            </div>
+                            <div className="flex-1 bg-gray-100 dark:bg-gray-900 relative">
+                                <iframe
+                                    src={viewingDoc.url}
+                                    className="w-full h-full border-0"
+                                    title={viewingDoc.title}
+                                />
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
         </div>
     );
 }

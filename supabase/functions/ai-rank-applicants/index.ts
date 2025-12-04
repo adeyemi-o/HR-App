@@ -8,10 +8,15 @@ const corsHeaders = {
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-tenant-id",
 }
 
-const schema = z.object({
-    candidates: z.array(z.any()),
-    job_description: z.string()
-});
+const schema = z.union([
+    z.object({
+        candidates: z.array(z.any()),
+        job_description: z.string()
+    }),
+    z.object({
+        messages: z.array(z.any())
+    })
+]);
 
 serve(async (req) => {
     if (req.method === "OPTIONS") {
@@ -26,12 +31,16 @@ serve(async (req) => {
             throw new Error(`Validation Error: ${JSON.stringify(validation.error.issues)}`)
         }
 
-        const { candidates, job_description } = validation.data
+        // Determine input
+        const input = 'messages' in validation.data
+            ? { messages: validation.data.messages }
+            : validation.data;
+
         const context = await getContext(req)
 
         const result = await aiRequest({
             task: "ranking",
-            input: JSON.stringify({ candidates, job_description }),
+            input: input,
             tenantId: context.tenantId,
             userId: context.userId,
             feature: "ai-rank-applicants"

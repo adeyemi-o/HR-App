@@ -1,117 +1,162 @@
-import { useState } from 'react';
-import { aiClient } from '../lib/aiClient';
+import { useState, useCallback } from 'react';
+import { aiClient } from '@/lib/aiClient';
+import type {
+    ApplicantSummary,
+    ApplicantRanking,
+    OfferLetter,
+    OnboardingSummary,
+    SetupHelper
+} from '@/lib/ai/schemas';
 
-export function useAISummary() {
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [result, setResult] = useState<any>(null);
-
-    const generateSummary = async (applicant: any) => {
-        setLoading(true);
-        setError(null);
-        try {
-            const data = await aiClient.summarizeApplicant(applicant);
-            setResult(data);
-            return data;
-        } catch (err: any) {
-            setError(err.message);
-            throw err;
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return { generateSummary, result, loading, error };
+interface UseAIResult<T, I> {
+    generate: (input: I) => Promise<T | null>;
+    data: T | null;
+    loading: boolean;
+    error: Error | null;
+    reset: () => void;
 }
 
-export function useAIRanking() {
+export function useAISummary(): UseAIResult<ApplicantSummary, any> {
+    const [data, setData] = useState<ApplicantSummary | null>(null);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [result, setResult] = useState<any>(null);
+    const [error, setError] = useState<Error | null>(null);
 
-    const rankApplicants = async (candidates: any[], jobDescription: string) => {
+    const generate = useCallback(async (applicant: any) => {
         setLoading(true);
         setError(null);
         try {
-            const data = await aiClient.rankApplicants(candidates, jobDescription);
-            setResult(data);
-            return data;
-        } catch (err: any) {
-            setError(err.message);
-            throw err;
+            const result = await aiClient.summarizeApplicant(applicant);
+            setData(result);
+            return result;
+        } catch (err) {
+            setError(err as Error);
+            return null;
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
-    return { rankApplicants, result, loading, error };
+    const reset = useCallback(() => {
+        setData(null);
+        setError(null);
+        setLoading(false);
+    }, []);
+
+    return { generate, data, loading, error, reset };
 }
 
-export function useAIDraftOffer() {
+export function useAIRanking(): UseAIResult<ApplicantRanking, { candidates: any[]; jobDescription: string }> {
+    const [data, setData] = useState<ApplicantRanking | null>(null);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [result, setResult] = useState<any>(null);
+    const [error, setError] = useState<Error | null>(null);
 
-    const draftOffer = async (details: any) => {
+    const generate = useCallback(async ({ candidates, jobDescription }: { candidates: any[]; jobDescription: string }) => {
         setLoading(true);
         setError(null);
         try {
-            const data = await aiClient.draftOfferLetter(details);
-            setResult(data);
-            return data;
-        } catch (err: any) {
-            setError(err.message);
-            throw err;
+            const result = await aiClient.rankApplicants(candidates, jobDescription);
+            setData(result);
+            return result;
+        } catch (err) {
+            setError(err as Error);
+            return null;
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
-    return { draftOffer, result, loading, error };
+    const reset = useCallback(() => {
+        setData(null);
+        setError(null);
+        setLoading(false);
+    }, []);
+
+    return { generate, data, loading, error, reset };
 }
 
-export function useAIOnboarding() {
+export function useAIOfferLetter(): UseAIResult<OfferLetter, any> {
+    const [data, setData] = useState<OfferLetter | null>(null);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [result, setResult] = useState<any>(null);
+    const [error, setError] = useState<Error | null>(null);
 
-    const getOnboardingLogic = async (employee: any, status: string) => {
+    const generate = useCallback(async (details: any) => {
         setLoading(true);
         setError(null);
         try {
-            const data = await aiClient.onboardingLogic(employee, status);
-            setResult(data);
-            return data;
-        } catch (err: any) {
-            setError(err.message);
-            throw err;
+            const result = await aiClient.draftOfferLetter(details);
+            setData(result);
+            return result;
+        } catch (err) {
+            setError(err as Error);
+            return null;
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
-    return { getOnboardingLogic, result, loading, error };
+    const reset = useCallback(() => {
+        setData(null);
+        setError(null);
+        setLoading(false);
+    }, []);
+
+    return { generate, data, loading, error, reset };
 }
 
-export function useAIValidation() {
+export function useAIOnboarding(): UseAIResult<OnboardingSummary, { employee: any; status: string }> {
+    const [data, setData] = useState<OnboardingSummary | null>(null);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [result, setResult] = useState<any>(null);
+    const [error, setError] = useState<Error | null>(null);
 
-    const validateUser = async (group: string, user: any) => {
+    const generate = useCallback(async ({ employee, status }: { employee: any; status: string }) => {
         setLoading(true);
         setError(null);
         try {
-            const data = await aiClient.wpValidation(group, user);
-            setResult(data);
-            return data;
-        } catch (err: any) {
-            setError(err.message);
-            throw err;
+            const result = await aiClient.onboardingLogic(employee, status);
+            setData(result);
+            return result;
+        } catch (err) {
+            setError(err as Error);
+            return null;
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
-    return { validateUser, result, loading, error };
+    const reset = useCallback(() => {
+        setData(null);
+        setError(null);
+        setLoading(false);
+    }, []);
+
+    return { generate, data, loading, error, reset };
+}
+
+export function useAISetupHelper(): UseAIResult<SetupHelper, string> {
+    const [data, setData] = useState<SetupHelper | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<Error | null>(null);
+
+    const generate = useCallback(async (query: string) => {
+        setLoading(true);
+        setError(null);
+        try {
+            const result = await aiClient.setupHelper(query);
+            setData(result);
+            return result;
+        } catch (err) {
+            setError(err as Error);
+            return null;
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    const reset = useCallback(() => {
+        setData(null);
+        setError(null);
+        setLoading(false);
+    }, []);
+
+    return { generate, data, loading, error, reset };
 }

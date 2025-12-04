@@ -1,0 +1,11 @@
+{
+    "applicant": {
+        "name": "John Doe",
+        "experience": "5 years in nursing",
+        "skills": [
+            "Patient Care",
+            "CPR Certified"
+        ],
+        "notes": "Very enthusiastic"
+    }
+}
