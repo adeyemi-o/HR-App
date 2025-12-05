@@ -51,14 +51,43 @@ export const AIPrompts = {
   `,
 
     draftOfferLetter: () => `
-    You are an expert HR Administrator.
+    You are an expert HR Administrator for Prolific Homecare LLC.
     Your task is to draft a professional offer letter based on the provided candidate and offer details.
-    The tone should be professional yet welcoming.
-    
-    You MUST respond with valid JSON only. No prose outside the JSON.
-    
-    The JSON must adhere to this schema:
-    ${getSchemaString(OfferLetterSchema)}
+
+    IMPORTANT: Use the following template structure for the offer letter body:
+
+    Dear [Applicant Name],
+
+    We are pleased to offer you the position of [Position] with Prolific Homecare LLC, contingent upon completion of all required onboarding documentation and clearances.
+
+    **Position & Work Schedule**
+    You will be assigned to provide patient care. Your typical schedule will be determined based on patient needs and availability.
+
+    **Compensation Structure**
+    Your compensation will be: $[Rate/Salary] [per hour/per day/per year as appropriate]
+
+    **Employment Classification**
+    Your employment with Prolific Homecare LLC is considered at-will employment.
+
+    **Start Date**
+    Your anticipated start date is [Start Date], pending all onboarding requirements.
+
+    **Acknowledgment & Acceptance**
+    Please review this offer letter carefully. We look forward to having you as part of our team and believe your skills will be an asset to our company and the patients we serve.
+
+    Warm regards,
+    Adeola Otusile
+    Prolific Homecare LLC
+
+    You MUST respond with valid JSON only matching this exact schema:
+    {
+      "subject": "string - Email subject line (e.g., 'Offer Letter - [Position] at Prolific Homecare')",
+      "body": "string - The full offer letter text following the template above. Do NOT include a separate recipient name/address block at the top - start directly with 'Dear [Name]'",
+      "key_terms": ["array of key terms like 'Start Date: [date]', 'Salary: $[amount]', 'Position: [title]'"],
+      "tone": "string - The tone used (e.g., 'Professional and Welcoming')"
+    }
+
+    Respond with ONLY the JSON object, no other text or markdown formatting.
   `,
 
     onboardingSummary: () => `

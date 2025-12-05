@@ -5,7 +5,7 @@ import { employeeService } from '@/services/employeeService';
 import type { Offer } from '@/types';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { format } from 'date-fns';
-import { Eye, Edit, FileText, Send, UserCheck } from 'lucide-react';
+import { Eye, Edit, FileText, Send, UserCheck, Trash2 } from 'lucide-react';
 import { SlideOver } from '@/components/ui/SlideOver';
 
 type OfferTab = 'Draft' | 'Pending Approval' | 'Sent' | 'Accepted' | 'Declined';
@@ -74,6 +74,27 @@ export function OfferList() {
         } finally {
             setProcessingId(null);
         }
+    };
+
+    const handleDelete = async (offer: Offer) => {
+        if (!confirm(`Are you sure you want to delete this offer for ${offer.applicant?.first_name} ${offer.applicant?.last_name}? This action cannot be undone.`)) return;
+
+        setProcessingId(offer.id);
+        try {
+            await offerService.deleteOffer(offer.id);
+            await loadOffers();
+            alert('Offer deleted successfully!');
+            setSelectedOffer(null);
+        } catch (err) {
+            alert('Failed to delete offer.');
+            console.error(err);
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+    const handleEdit = (offerId: string) => {
+        navigate(`/offers/${offerId}/edit`);
     };
 
     const filteredOffers = offers.filter(offer => {
@@ -177,10 +198,23 @@ export function OfferList() {
                                             Preview
                                         </button>
                                         {(offer.status === 'Draft' || offer.status === 'Pending_Approval') && (
-                                            <button className="px-4 py-2 bg-white dark:bg-card border border-[rgba(162,161,168,0.2)] text-[#16151C] dark:text-white rounded-lg hover:bg-[rgba(162,161,168,0.05)] transition-colors flex items-center gap-2 font-light">
-                                                <Edit size={16} />
-                                                Edit
-                                            </button>
+                                            <>
+                                                <button
+                                                    onClick={() => handleEdit(offer.id)}
+                                                    className="px-4 py-2 bg-white dark:bg-card border border-[rgba(162,161,168,0.2)] text-[#16151C] dark:text-white rounded-lg hover:bg-[rgba(162,161,168,0.05)] transition-colors flex items-center gap-2 font-light"
+                                                >
+                                                    <Edit size={16} />
+                                                    Edit
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(offer)}
+                                                    disabled={processingId === offer.id}
+                                                    className="px-4 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors flex items-center gap-2 font-light"
+                                                >
+                                                    <Trash2 size={16} />
+                                                    Delete
+                                                </button>
+                                            </>
                                         )}
                                     </div>
                                 </div>
@@ -296,38 +330,54 @@ export function OfferList() {
                         </div>
 
                         {/* Actions */}
-                        <div className="flex gap-3 pt-4 border-t border-[rgba(162,161,168,0.1)]">
-                            {(selectedOffer.status === 'Pending_Approval' || selectedOffer.status === 'Draft') && (
-                                <>
+                        <div className="space-y-3 pt-4 border-t border-[rgba(162,161,168,0.1)]">
+                            <div className="flex gap-3">
+                                {(selectedOffer.status === 'Pending_Approval' || selectedOffer.status === 'Draft') && (
+                                    <>
+                                        <button
+                                            onClick={() => handleSend(selectedOffer)}
+                                            disabled={processingId === selectedOffer.id}
+                                            className="flex-1 px-4 py-3 bg-[#7152F3] text-white rounded-[10px] hover:bg-[rgba(113,82,243,0.9)] transition-colors font-light flex items-center justify-center gap-2"
+                                        >
+                                            <Send size={18} />
+                                            {processingId === selectedOffer.id ? 'Sending...' : 'Approve & Send Offer'}
+                                        </button>
+                                        <button
+                                            onClick={() => handleEdit(selectedOffer.id)}
+                                            className="px-4 py-3 bg-white dark:bg-card border border-[rgba(162,161,168,0.2)] text-[#16151C] dark:text-white rounded-[10px] hover:bg-[rgba(162,161,168,0.05)] transition-colors font-light flex items-center gap-2"
+                                        >
+                                            <Edit size={18} />
+                                            Edit
+                                        </button>
+                                    </>
+                                )}
+                                {selectedOffer.status === 'Accepted' && (
                                     <button
-                                        onClick={() => handleSend(selectedOffer)}
-                                        disabled={processingId === selectedOffer.id}
-                                        className="flex-1 px-4 py-3 bg-[#7152F3] text-white rounded-[10px] hover:bg-[rgba(113,82,243,0.9)] transition-colors font-light flex items-center justify-center gap-2"
+                                        onClick={() => handleOnboard(selectedOffer)}
+                                        disabled={processingId === selectedOffer.id || selectedOffer.applicant?.status === 'Hired'}
+                                        className={`flex-1 px-4 py-3 text-white rounded-[10px] transition-colors font-light flex items-center justify-center gap-2 ${selectedOffer.applicant?.status === 'Hired'
+                                            ? 'bg-gray-400 cursor-not-allowed'
+                                            : 'bg-[#22C55E] hover:bg-[rgba(34,197,94,0.9)]'
+                                            }`}
                                     >
-                                        <Send size={18} />
-                                        {processingId === selectedOffer.id ? 'Sending...' : 'Approve & Send Offer'}
+                                        <UserCheck size={18} />
+                                        {selectedOffer.applicant?.status === 'Hired' ? 'Already Onboarded' : 'Onboard Employee'}
                                     </button>
-                                    <button className="px-4 py-3 bg-white dark:bg-card border border-[rgba(162,161,168,0.2)] text-[#16151C] dark:text-white rounded-[10px] hover:bg-[rgba(162,161,168,0.05)] transition-colors font-light">
-                                        Edit Template
+                                )}
+                                {(selectedOffer.status === 'Sent' || selectedOffer.status === 'Accepted') && (
+                                    <button className="flex-1 px-4 py-3 bg-[#7152F3] text-white rounded-[10px] hover:bg-[rgba(113,82,243,0.9)] transition-colors font-light">
+                                        Download PDF
                                     </button>
-                                </>
-                            )}
-                            {selectedOffer.status === 'Accepted' && (
+                                )}
+                            </div>
+                            {(selectedOffer.status === 'Draft' || selectedOffer.status === 'Pending_Approval' || selectedOffer.status === 'Declined') && (
                                 <button
-                                    onClick={() => handleOnboard(selectedOffer)}
-                                    disabled={processingId === selectedOffer.id || selectedOffer.applicant?.status === 'Hired'}
-                                    className={`flex-1 px-4 py-3 text-white rounded-[10px] transition-colors font-light flex items-center justify-center gap-2 ${selectedOffer.applicant?.status === 'Hired'
-                                        ? 'bg-gray-400 cursor-not-allowed'
-                                        : 'bg-[#22C55E] hover:bg-[rgba(34,197,94,0.9)]'
-                                        }`}
+                                    onClick={() => handleDelete(selectedOffer)}
+                                    disabled={processingId === selectedOffer.id}
+                                    className="w-full px-4 py-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-[10px] hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors font-light flex items-center justify-center gap-2 border border-red-200 dark:border-red-900/30"
                                 >
-                                    <UserCheck size={18} />
-                                    {selectedOffer.applicant?.status === 'Hired' ? 'Already Onboarded' : 'Onboard Employee'}
-                                </button>
-                            )}
-                            {(selectedOffer.status === 'Sent' || selectedOffer.status === 'Accepted') && (
-                                <button className="flex-1 px-4 py-3 bg-[#7152F3] text-white rounded-[10px] hover:bg-[rgba(113,82,243,0.9)] transition-colors font-light">
-                                    Download PDF
+                                    <Trash2 size={18} />
+                                    {processingId === selectedOffer.id ? 'Deleting...' : 'Delete Offer'}
                                 </button>
                             )}
                         </div>

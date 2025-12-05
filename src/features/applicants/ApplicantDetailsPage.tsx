@@ -150,6 +150,28 @@ export function ApplicantDetailsPage() {
                 </div>
             </div>
 
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+                <button
+                    onClick={handleSendOffer}
+                    className="flex-1 px-6 py-3 bg-green-600 text-white rounded-[10px] hover:bg-green-700 transition-colors font-medium shadow-lg shadow-green-600/20"
+                >
+                    Send Offer
+                </button>
+                <button
+                    onClick={() => handleStatusUpdate('interviewing')}
+                    className="flex-1 px-6 py-3 bg-yellow-500 text-white rounded-[10px] hover:bg-yellow-600 transition-colors font-medium shadow-lg shadow-yellow-500/20"
+                >
+                    Interview
+                </button>
+                <button
+                    onClick={() => handleStatusUpdate('rejected')}
+                    className="flex-1 px-6 py-3 bg-red-600 text-white rounded-[10px] hover:bg-red-700 transition-colors font-medium shadow-lg shadow-red-600/20"
+                >
+                    Reject
+                </button>
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Main Info Column */}
                 <div className="lg:col-span-2 space-y-6">

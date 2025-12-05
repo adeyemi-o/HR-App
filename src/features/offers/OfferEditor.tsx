@@ -80,8 +80,10 @@ export function OfferEditor() {
         setLoading(true);
         try {
             if (id) {
-                // Update existing offer (not implemented in service yet, but placeholder)
-                console.log('Update offer', id, data);
+                await offerService.updateOffer(id, {
+                    ...data,
+                    status: 'Draft',
+                });
             } else {
                 await offerService.createOffer({
                     ...data,
@@ -91,6 +93,7 @@ export function OfferEditor() {
             navigate('/offers');
         } catch (error) {
             console.error('Failed to save offer', error);
+            alert('Failed to save offer. Please try again.');
         } finally {
             setLoading(false);
         }
