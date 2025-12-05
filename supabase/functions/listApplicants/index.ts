@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { JotFormClient, mapSubmissionToApplicant } from '../_shared/jotform-client.ts'
+import { migrateFileToStorage, isJotFormFileUrl } from '../_shared/file-manager.ts'
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -39,63 +41,170 @@ serve(async (req) => {
             throw new Error('Missing Application Form ID in settings')
         }
 
-        const response = await fetch(`https://api.jotform.com/form/${FORM_ID}/submissions?apiKey=${JOTFORM_API_KEY}&limit=100`, {
-            method: 'GET',
+        // Initialize JotForm client with retry logic and error handling
+        const jotformClient = new JotFormClient(
+            JOTFORM_API_KEY,
+            supabaseUrl,
+            supabaseServiceKey
+        )
+
+        // Fetch submissions using the new client (includes retry logic)
+        const submissions = await jotformClient.getFormSubmissions(FORM_ID, {
+            limit: 100,
+            orderby: 'created_at'
         })
 
-        if (!response.ok) {
-            const errorText = await response.text()
-            throw new Error(`JotForm API error: ${response.status} ${errorText}`)
+        // Fetch existing applicants from DB to preserve status and link by email
+        const { data: existingApplicants } = await supabase
+            .from('applicants')
+            .select('id, status, jotform_id, email, resume_url')
+
+        const jotformIdMap = new Map() // Map jotform_id -> { id, status, resume_url }
+        const emailMap = new Map()  // Map email -> { id, status, jotform_id, resume_url }
+
+        if (existingApplicants) {
+            existingApplicants.forEach((app: any) => {
+                if (app.jotform_id) {
+                    jotformIdMap.set(app.jotform_id, { id: app.id, status: app.status, resume_url: app.resume_url })
+                }
+                if (app.email) {
+                    emailMap.set(app.email.toLowerCase(), app)
+                }
+            })
         }
 
-        const data = await response.json()
+        // Map submissions to applicant data using the helper function (async for file migration)
+        const applicants = await Promise.all(submissions.map(async (submission: any) => {
+            // Use the new mapping function for consistency
+            const baseData = mapSubmissionToApplicant(submission)
 
-        if (data.responseCode !== 200) {
-            throw new Error(`JotForm returned error code: ${data.responseCode} - ${data.message}`)
-        }
+            // Check if this applicant already has a migrated file
+            const existingRecord = jotformIdMap.get(baseData.jotform_id) ||
+                (baseData.email ? emailMap.get(baseData.email.toLowerCase()) : null)
 
-        const applicants = data.content.map((submission: any) => {
-            const answers = submission.answers || {};
-            let firstName = '';
-            let lastName = '';
-            let email = '';
-            let phone = '';
-            let position = '';
-            let resumeUrl = '';
+            // Only migrate if resume_url is a JotForm URL and hasn't been migrated yet
+            if (baseData.resume_url && isJotFormFileUrl(baseData.resume_url)) {
+                // Skip if existing record already has a non-JotForm URL (already migrated)
+                if (existingRecord?.resume_url && !isJotFormFileUrl(existingRecord.resume_url)) {
+                    baseData.resume_url = existingRecord.resume_url
+                    console.log(`[listApplicants] Skipping migration - already migrated: ${baseData.email}`)
+                } else {
+                    console.log(`[listApplicants] Migrating file for applicant: ${baseData.email}`)
+                    const migrationResult = await migrateFileToStorage(
+                        baseData.resume_url,
+                        baseData.jotform_id,
+                        supabase
+                    )
 
-            Object.values(answers).forEach((ans: any) => {
-                if (ans.name === 'fullName' || ans.type === 'control_fullname') {
-                    firstName = ans.answer?.first || '';
-                    lastName = ans.answer?.last || '';
+                    if (migrationResult.success && migrationResult.storageUrl) {
+                        baseData.resume_url = migrationResult.storageUrl
+                        console.log(`[listApplicants] File migrated: ${migrationResult.storageUrl}`)
+                    } else {
+                        console.warn(`[listApplicants] File migration failed: ${migrationResult.error}`)
+                        // Keep original JotForm URL as fallback
+                    }
                 }
-                if (ans.name === 'email' || ans.type === 'control_email') {
-                    email = ans.answer || '';
-                }
-                if (ans.name === 'phoneNumber' || ans.type === 'control_phone') {
-                    phone = ans.answer?.full || ans.answer || '';
-                }
-                if (ans.name === 'positionApplied' || ans.text?.toLowerCase().includes('position')) {
-                    position = ans.answer || '';
-                }
-                if (ans.name === 'uploadResume' || ans.text?.toLowerCase().includes('resume')) {
-                    resumeUrl = ans.answer ? (Array.isArray(ans.answer) ? ans.answer[0] : ans.answer) : '';
-                }
-            });
+            }
 
-            return {
-                id: submission.id,
+            // 1. Try to find existing record by JotForm ID (Primary match)
+            let existingMatch = jotformIdMap.get(baseData.jotform_id)
+            let existingId = existingMatch?.id;
+            let existingStatus = existingMatch?.status;
+
+            // 2. If not found, try to find by Email (Secondary match - for migration)
+            if (!existingId && baseData.email) {
+                const match = emailMap.get(baseData.email.toLowerCase())
+                if (match) {
+                    existingStatus = match.status
+                    existingId = match.id // Found the UUID!
+                }
+            }
+
+            // Determine status
+            const ALLOWED_STATUSES = ['New', 'Screening', 'Interview', 'Offer', 'Hired', 'Rejected'];
+            const status = existingStatus || 'New';
+
+            // Construct payload combining base data with existing record info
+            const payload: any = {
+                ...baseData,
+                status: ALLOWED_STATUSES.includes(status) ? status : 'New',
                 created_at: submission.created_at,
-                first_name: firstName,
-                last_name: lastName,
-                email: email,
-                phone: phone,
-                position_applied: position,
-                status: submission.status || 'New',
-                resume_url: resumeUrl
             };
+
+            // If we found an existing UUID (via email match or jotform_id match), include it to force an update
+            if (existingId) {
+                payload.id = existingId;
+            }
+
+            return payload;
+        }));
+
+        // Deduplicate by email to prevent unique constraint violations
+        // If multiple submissions have the same email, we keep the one that is already linked (has ID)
+        // or the first one we encounter (assuming JotForm returns newest first?)
+        // Actually, let's explicitly handle it.
+        const uniqueApplicantsMap = new Map();
+
+        applicants.forEach((app: any) => {
+            if (!app.email) return; // Skip if no email (shouldn't happen given logic, but safe)
+
+            const email = app.email.toLowerCase().trim();
+            const existing = uniqueApplicantsMap.get(email);
+
+            if (!existing) {
+                uniqueApplicantsMap.set(email, app);
+            } else {
+                // Conflict! We have two submissions with same email.
+                // Priority:
+                // 1. Record with ID (already in DB) wins.
+                // 2. If both have ID (same ID), doesn't matter.
+                // 3. If neither has ID, keep the one we already have (assuming order is meaningful) 
+                //    OR check created_at?
+
+                if (app.id && !existing.id) {
+                    uniqueApplicantsMap.set(email, app); // Prefer the one that links to DB
+                }
+                // Else keep existing.
+            }
         });
 
-        return new Response(JSON.stringify(applicants), {
+        const uniqueApplicants = Array.from(uniqueApplicantsMap.values());
+
+        // Split into two batches
+        const updates = uniqueApplicants.filter((a: any) => a.id);
+        const inserts = uniqueApplicants.filter((a: any) => !a.id);
+
+        let allUpsertedData: any[] = [];
+
+        // 1. Process Updates (Match by ID)
+        if (updates.length > 0) {
+            const { data: updatedData, error: updateError } = await supabase
+                .from('applicants')
+                .upsert(updates, { onConflict: 'id' })
+                .select()
+
+            if (updateError) {
+                console.error('Failed to update applicants:', updateError)
+                throw new Error(`Failed to update applicants: ${updateError.message}`)
+            }
+            if (updatedData) allUpsertedData = [...allUpsertedData, ...updatedData];
+        }
+
+        // 2. Process Inserts (Match by JotForm ID)
+        if (inserts.length > 0) {
+            const { data: insertedData, error: insertError } = await supabase
+                .from('applicants')
+                .upsert(inserts, { onConflict: 'jotform_id' })
+                .select()
+
+            if (insertError) {
+                console.error('Failed to insert applicants:', insertError)
+                throw new Error(`Failed to insert applicants: ${insertError.message}`)
+            }
+            if (insertedData) allUpsertedData = [...allUpsertedData, ...insertedData];
+        }
+
+        return new Response(JSON.stringify(allUpsertedData), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
 

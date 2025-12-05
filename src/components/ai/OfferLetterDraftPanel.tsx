@@ -5,9 +5,10 @@ import { FileText, Copy, Check, Edit3, Send } from 'lucide-react';
 interface OfferLetterDraftPanelProps {
     employeeDetails: any;
     onSend?: (content: string) => void;
+    autoDraft?: boolean;
 }
 
-export function OfferLetterDraftPanel({ employeeDetails, onSend }: OfferLetterDraftPanelProps) {
+export function OfferLetterDraftPanel({ employeeDetails, onSend, autoDraft }: OfferLetterDraftPanelProps) {
     const { generate, data, loading, error } = useAIOfferLetter();
     const [copied, setCopied] = useState(false);
     const [editableBody, setEditableBody] = useState('');
@@ -18,6 +19,12 @@ export function OfferLetterDraftPanel({ employeeDetails, onSend }: OfferLetterDr
             setEditableBody(result.body);
         }
     };
+
+    React.useEffect(() => {
+        if (autoDraft && !data && !loading && !error) {
+            handleDraft();
+        }
+    }, [autoDraft]);
 
     const handleCopy = () => {
         if (data) {

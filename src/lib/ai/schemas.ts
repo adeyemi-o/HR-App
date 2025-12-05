@@ -7,7 +7,6 @@ export const ApplicantSummarySchema = z.object({
     risks: z.array(z.string()).describe("Potential risks or red flags."),
     salary_insights: z.string().optional().describe("Estimated salary range or expectations if mentioned."),
     tags: z.array(z.string()).describe("Relevant skills or keywords."),
-    score: z.number().min(0).max(100).describe("Overall suitability score (0-100)."),
 });
 
 // 2. Applicant Ranking Schema

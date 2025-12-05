@@ -6,7 +6,8 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { format } from 'date-fns';
 import { ArrowLeft, Mail, Phone, FileText, Calendar, Shield, AlertCircle, CheckCircle, X, ExternalLink } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { ApplicantSummaryPanel } from '@/components/ai/ApplicantSummaryPanel';
+import { EnhancedApplicantSummaryPanel } from '@/components/ai/EnhancedApplicantSummaryPanel';
+import { ApplicantTimeline } from '@/components/applicants/ApplicantTimeline';
 
 export function ApplicantDetailsPage() {
     const { id } = useParams<{ id: string }>();
@@ -85,51 +86,24 @@ export function ApplicantDetailsPage() {
     // Helper to extract answer safely
     const getAnswer = (key: string) => applicant.answers?.[key] || 'N/A';
 
-    const handleSendOffer = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setOfferLoading(true);
-        try {
-            // Safely extract names
-            const fullNameAnswer = applicant.answers?.fullName;
-            // Handle case where fullName might be the string "N/A" from getAnswer or missing
-            const firstName = fullNameAnswer?.first || applicant.answers?.['q3_fullName']?.first || 'Unknown';
-            const lastName = fullNameAnswer?.last || applicant.answers?.['q3_fullName']?.last || 'Applicant';
+    const handleSendOffer = () => {
+        if (!applicant) return;
 
-            const payload = {
-                jotformSubmissionId: applicant.id,
-                email: getAnswer('email'),
-                firstName: firstName,
-                lastName: lastName,
-                position: offerForm.position,
-                salary: parseFloat(offerForm.salary),
-                startDate: offerForm.startDate
-            };
-            console.log('Sending Offer Payload:', payload);
+        const fullNameAnswer = applicant.answers?.fullName;
+        const firstName = fullNameAnswer?.first || applicant.answers?.['q3_fullName']?.first || 'Unknown';
+        const lastName = fullNameAnswer?.last || applicant.answers?.['q3_fullName']?.last || 'Applicant';
 
-            const { data, error } = await supabase.functions.invoke('sendOffer', {
-                body: payload
-            });
-
-            if (error) {
-                console.error('Send Offer Error Response:', error);
-                // Try to parse the error message if it's a JSON string
-                let errorMessage = error.message;
-                try {
-                    const parsed = JSON.parse(error.message);
-                    if (parsed.error) errorMessage = parsed.error;
-                } catch (e) { /* ignore */ }
-                throw new Error(errorMessage);
+        navigate('/offers/new', {
+            state: {
+                applicant: {
+                    id: applicant.id,
+                    first_name: firstName,
+                    last_name: lastName,
+                    email: getAnswer('email'),
+                },
+                autoDraft: true
             }
-
-            console.log('Offer Sent Success:', data);
-            alert('Offer sent successfully!');
-            setShowOfferModal(false);
-        } catch (err: any) {
-            console.error('Handle Send Offer Exception:', err);
-            alert('Failed to send offer: ' + err.message);
-        } finally {
-            setOfferLoading(false);
-        }
+        });
     };
 
     // Status Update Logic
@@ -173,28 +147,6 @@ export function ApplicantDetailsPage() {
 
                 <div className="flex items-center gap-3">
                     <StatusBadge status={applicant.status} />
-
-                    {/* Action Buttons */}
-                    <div className="flex items-center gap-2 ml-4 border-l border-gray-200 dark:border-gray-700 pl-4">
-                        <button
-                            onClick={() => handleStatusUpdate('rejected')}
-                            className="px-4 py-2 border border-red-200 text-red-600 rounded-[10px] hover:bg-red-50 dark:border-red-900/30 dark:hover:bg-red-900/10 transition-colors text-sm font-medium"
-                        >
-                            Reject
-                        </button>
-                        <button
-                            onClick={() => handleStatusUpdate('interviewing')}
-                            className="px-4 py-2 border border-[rgba(162,161,168,0.2)] text-[#16151C] dark:text-white rounded-[10px] hover:bg-[rgba(162,161,168,0.05)] transition-colors text-sm font-medium"
-                        >
-                            Interview
-                        </button>
-                        <button
-                            onClick={() => setShowOfferModal(true)}
-                            className="px-4 py-2 bg-[#7152F3] text-white rounded-[10px] hover:bg-[rgba(113,82,243,0.9)] transition-colors text-sm font-medium shadow-lg shadow-[#7152F3]/20"
-                        >
-                            Send Offer
-                        </button>
-                    </div>
                 </div>
             </div>
 
@@ -293,11 +245,14 @@ export function ApplicantDetailsPage() {
                             })}
                         </div>
                     </div>
+
+                    {/* Application Timeline */}
+                    <ApplicantTimeline applicant={applicant} />
                 </div>
 
                 {/* Sidebar Column */}
                 <div className="space-y-6">
-                    <ApplicantSummaryPanel applicant={applicant} />
+                    <EnhancedApplicantSummaryPanel applicant={applicant} />
                 </div>
             </div>
 

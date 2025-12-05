@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { offerService } from '@/services/offerService';
 import { applicantService } from '@/services/applicantService';
 import type { Applicant } from '@/types';
@@ -17,23 +17,52 @@ interface OfferFormData {
 
 export function OfferEditor() {
     const navigate = useNavigate();
+    const location = useLocation();
     const { id } = useParams();
     const [applicants, setApplicants] = useState<Applicant[]>([]);
     const [loading, setLoading] = useState(false);
 
-    const { register, handleSubmit, watch, formState: { errors }, reset } = useForm<OfferFormData>();
+    const { register, handleSubmit, watch, formState: { errors }, reset, setValue } = useForm<OfferFormData>();
 
     useEffect(() => {
         loadApplicants();
+    }, []);
+
+    useEffect(() => {
         if (id) {
             loadOffer(id);
         }
     }, [id]);
 
+    // Handle auto-population from location state
+    useEffect(() => {
+        if (location.state?.applicant && applicants.length > 0) {
+            const app = location.state.applicant;
+
+            // Check if applicant is in the list
+            const exists = applicants.find(a => a.id === app.id);
+            if (!exists) {
+                // If not in list (e.g. filtered out), add them temporarily so we can select them
+                setApplicants(prev => [...prev, {
+                    id: app.id,
+                    first_name: app.first_name,
+                    last_name: app.last_name,
+                    email: app.email,
+                    status: 'New', // Use a valid status
+                    created_at: new Date().toISOString()
+                } as unknown as Applicant]);
+            }
+
+            setValue('applicant_id', app.id);
+        }
+    }, [applicants.length, location.state, setValue]);
+
     const loadApplicants = async () => {
         const data = await applicantService.getApplicants();
         // Filter out applicants who are already Hired or Rejected
-        const eligibleApplicants = data.filter(app => app.status !== 'Hired' && app.status !== 'Rejected');
+        // BUT if we are coming from details page, we might want to offer regardless of status
+        // So let's keep all for now, or just filter Hired.
+        const eligibleApplicants = data.filter(app => app.status !== 'Hired');
         setApplicants(eligibleApplicants);
     };
 
@@ -220,15 +249,15 @@ export function OfferEditor() {
                         employeeDetails={{
                             name: applicants.find(a => a.id === watch('applicant_id')) ?
                                 `${applicants.find(a => a.id === watch('applicant_id'))?.first_name} ${applicants.find(a => a.id === watch('applicant_id'))?.last_name}` : '',
-                            position: watch('position_title'),
-                            rate: watch('salary')?.toString(),
-                            startDate: watch('start_date'),
+                            position: watch('position_title') || 'TBD',
+                            rate: watch('salary')?.toString() || 'TBD',
+                            startDate: watch('start_date') || 'TBD',
                             email: applicants.find(a => a.id === watch('applicant_id'))?.email
                         }}
+                        autoDraft={!!location.state?.autoDraft}
                     />
                 </div>
             </div>
         </div>
     );
-
 }

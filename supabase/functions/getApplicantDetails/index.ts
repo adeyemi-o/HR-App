@@ -34,10 +34,25 @@ serve(async (req) => {
             throw new Error('Missing JOTFORM_API_KEY in settings')
         }
 
-        const { applicantId } = await req.json()
+        let { applicantId } = await req.json()
 
         if (!applicantId) {
             throw new Error('Missing applicantId')
+        }
+
+        // Check if applicantId is a UUID (Supabase ID) and resolve to JotForm ID
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (uuidRegex.test(applicantId)) {
+            const { data: applicant, error: dbError } = await supabase
+                .from('applicants')
+                .select('jotform_id')
+                .eq('id', applicantId)
+                .single()
+
+            if (dbError || !applicant?.jotform_id) {
+                throw new Error(`Could not find applicant with ID ${applicantId}`)
+            }
+            applicantId = applicant.jotform_id
         }
 
         // Form IDs from Settings
@@ -140,8 +155,20 @@ serve(async (req) => {
             if (!formId) return null; // Skip if form ID not configured
 
             try {
-                // Fetch recent submissions (limit 50 to be safe on rate limits/performance)
-                const url = `https://api.jotform.com/form/${formId}/submissions?apiKey=${JOTFORM_API_KEY}&limit=50&orderby=created_at,desc`
+                // Build filter to search by email (much more efficient than fetching all)
+                let url = `https://api.jotform.com/form/${formId}/submissions?apiKey=${JOTFORM_API_KEY}&orderby=created_at,desc`;
+
+                // If we have an email, try filtering by it first for efficiency
+                if (targetEmail) {
+                    // Note: JotForm filter syntax varies, trying direct email match
+                    // If this doesn't work, fallback to fetching limited results
+                    const filter = JSON.stringify({ email: targetEmail });
+                    url += `&filter=${encodeURIComponent(filter)}&limit=5`;
+                } else {
+                    // No email to filter, fetch limited recent submissions
+                    url += `&limit=20`;
+                }
+
                 const res = await fetch(url)
                 if (!res.ok) {
                     debugInfo.forms[formId] = { error: `Fetch failed: ${res.status}` }

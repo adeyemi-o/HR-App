@@ -15,7 +15,7 @@ export function ApplicantSummaryPanel({ applicant }: ApplicantSummaryPanelProps)
 
     if (!data && !loading && !error) {
         return (
-            <div className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-800/50">
+            <div className="p-4 border rounded-lg bg-gray-50 dark:bg-card border-gray-200 dark:border-gray-800">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <Sparkles className="w-5 h-5 text-purple-500" />
@@ -37,7 +37,7 @@ export function ApplicantSummaryPanel({ applicant }: ApplicantSummaryPanelProps)
 
     if (loading) {
         return (
-            <div className="p-8 border rounded-lg bg-gray-50 dark:bg-gray-800/50 flex flex-col items-center justify-center space-y-3">
+            <div className="p-8 border rounded-lg bg-gray-50 dark:bg-card border-gray-200 dark:border-gray-800 flex flex-col items-center justify-center space-y-3">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
                 <p className="text-sm text-gray-500 animate-pulse">Analyzing resume and profile...</p>
             </div>
@@ -65,7 +65,7 @@ export function ApplicantSummaryPanel({ applicant }: ApplicantSummaryPanelProps)
     return (
         <div className="space-y-4">
             {/* Summary Card */}
-            <div className="p-6 border rounded-lg bg-white dark:bg-gray-800 shadow-sm">
+            <div className="p-6 border rounded-lg bg-white dark:bg-card border-gray-200 dark:border-gray-800 shadow-sm">
                 <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-2">
                         <Sparkles className="w-5 h-5 text-purple-500" />

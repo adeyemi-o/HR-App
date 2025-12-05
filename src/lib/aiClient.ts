@@ -28,17 +28,48 @@ async function callAI<T>(
     // or sometimes just the output if cached?
     // Let's handle both.
 
-    const responseText = data.result?.response || data.output || data.response;
+    // Debug: Log the full response to understand structure
+    console.log("AI Response structure:", data);
+
+    // Worker returns: { success: true, task, model, result: { response: "..." } }
+    // Or from cache: { success: true, output: "...", from_cache: true }
+
+    // Try different paths based on response structure
+    let responseText = null;
+
+    // Path 1: Cached response (from Supabase Edge Function)
+    if (data.output) {
+        responseText = data.output;
+    }
+    // Path 2: Fresh AI response from Worker
+    else if (data.result) {
+        // For chat/reasoning tasks, Worker returns { result: { response: "..." } }
+        responseText = data.result.response || data.result;
+    }
+    // Path 3: Direct response field
+    else if (data.response) {
+        responseText = data.response;
+    }
 
     if (!responseText) {
         console.error("AI Response missing:", data);
         throw new Error("AI did not return a response.");
     }
 
+    console.log("Extracted response:", responseText);
+
+    // Check if responseText is already an object (not a string)
+    if (typeof responseText === 'object') {
+        console.log("Response is already an object:", responseText);
+        return responseText as T;
+    }
+
     try {
         // The AI might wrap JSON in markdown code blocks ```json ... ```
         const cleanJson = responseText.replace(/```json\n?|\n?```/g, "").trim();
-        return JSON.parse(cleanJson) as T;
+        const parsed = JSON.parse(cleanJson);
+        console.log("Parsed AI response:", parsed);
+        return parsed as T;
     } catch (e) {
         console.error("Failed to parse AI JSON:", responseText);
         throw new Error("AI returned invalid JSON.");
