@@ -219,15 +219,55 @@ async function handleApplicationSubmission(
     }
   }
 
-  // Check if applicant already exists
-  const { data: existing } = await supabase
+  // Check if applicant already exists using multiple strategies
+  let targetApplicantId: string | null = null;
+  let matchReason: string | null = null;
+
+  // Strategy 1: Match by JotForm ID (deterministic)
+  const { data: existingByJotForm } = await supabase
     .from('applicants')
     .select('id, status')
     .eq('jotform_id', applicantData.jotform_id)
     .single();
 
-  if (existing) {
-    // Update existing applicant (preserve status)
+  if (existingByJotForm) {
+    targetApplicantId = existingByJotForm.id;
+    matchReason = 'jotform_id';
+  }
+
+  // Strategy 2: Match by Email (if no JotForm ID match)
+  if (!targetApplicantId && applicantData.email) {
+    const { data: existingByEmail } = await supabase
+      .from('applicants')
+      .select('id')
+      .eq('email', applicantData.email)
+      .single();
+
+    if (existingByEmail) {
+      targetApplicantId = existingByEmail.id;
+      matchReason = 'email';
+    }
+  }
+
+  // Strategy 3: Match by Name (Fuzzy fallback if no email match)
+  if (!targetApplicantId && applicantData.first_name && applicantData.last_name) {
+    const { data: existingByName } = await supabase
+      .from('applicants')
+      .select('id')
+      .ilike('first_name', applicantData.first_name)
+      .ilike('last_name', applicantData.last_name)
+      .single();
+
+    if (existingByName) {
+      targetApplicantId = existingByName.id;
+      matchReason = 'name_match';
+    }
+  }
+
+  if (targetApplicantId) {
+    // Update existing applicant
+    console.log(`Updating existing applicant (${matchReason}):`, targetApplicantId);
+
     const { error: updateError } = await supabase
       .from('applicants')
       .update({
@@ -237,17 +277,18 @@ async function handleApplicationSubmission(
         phone: applicantData.phone,
         position_applied: applicantData.position_applied,
         resume_url: applicantData.resume_url,
+        // Only update jotform_id if it's missing or different, but logic assumes we overwrite to link latest
+        jotform_id: applicantData.jotform_id,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', existing.id);
+      .eq('id', targetApplicantId);
 
     if (updateError) {
       throw new Error(`Failed to update applicant: ${updateError.message}`);
     }
-
-    console.log('Updated existing applicant:', existing.id);
   } else {
     // Create new applicant
+    console.log('Creating new applicant (no match found)');
     const { error: insertError } = await supabase
       .from('applicants')
       .insert({
@@ -257,10 +298,11 @@ async function handleApplicationSubmission(
       });
 
     if (insertError) {
-      // Handle unique constraint on email
+      // Final safely net: duplicate key error on email (race condition or weird case)
       if (insertError.code === '23505' && insertError.message.includes('email')) {
-        // Update by email instead
-        const { error: updateByEmailError } = await supabase
+        console.warn('Hit email constraint race condition, retrying update...');
+        // Fallback to update by email
+        const { error: fallbackError } = await supabase
           .from('applicants')
           .update({
             jotform_id: applicantData.jotform_id,
@@ -273,16 +315,10 @@ async function handleApplicationSubmission(
           })
           .eq('email', applicantData.email);
 
-        if (updateByEmailError) {
-          throw new Error(`Failed to update applicant by email: ${updateByEmailError.message}`);
-        }
-
-        console.log('Updated applicant by email match');
+        if (fallbackError) throw new Error(`Fallback update failed: ${fallbackError.message}`);
       } else {
         throw new Error(`Failed to create applicant: ${insertError.message}`);
       }
-    } else {
-      console.log('Created new applicant');
     }
   }
 }

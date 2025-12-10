@@ -1,19 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApplicantDetails } from '@/hooks/useApplicantDetails';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { format } from 'date-fns';
-import { ArrowLeft, Mail, Phone, FileText, Calendar, Shield, AlertCircle, CheckCircle, X, ExternalLink, UserPlus } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, FileText, Calendar, Shield, AlertCircle, CheckCircle, X, ExternalLink, UserPlus, UserCheck } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { EnhancedApplicantSummaryPanel } from '@/components/ai/EnhancedApplicantSummaryPanel';
 import { ApplicantTimeline } from '@/components/applicants/ApplicantTimeline';
+import { employeeService } from '@/services/employeeService';
+import { toast } from '@/hooks/useToast';
+import { useConfirm } from '@/hooks/useConfirm';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 export function ApplicantDetailsPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { data: applicant, isLoading, error } = useApplicantDetails(id);
+    const { confirm, confirmState, handleClose, handleConfirm } = useConfirm();
 
     // Offer Modal State
     const [showOfferModal, setShowOfferModal] = useState(false);
@@ -30,17 +35,38 @@ export function ApplicantDetailsPage() {
     // Request Loading State
     const [requestLoading, setRequestLoading] = useState<Record<string, boolean>>({});
 
+    // Move to Employee Loading State
+    const [moveToEmployeeLoading, setMoveToEmployeeLoading] = useState(false);
+    const [hasEmployeeRecord, setHasEmployeeRecord] = useState(false);
+
+    // Check if employee record already exists
+    useEffect(() => {
+        const checkEmployeeExists = async () => {
+            if (!applicant?.id) return;
+
+            const { data } = await supabase
+                .from('employees')
+                .select('id')
+                .eq('applicant_id', applicant.id)
+                .maybeSingle();
+
+            setHasEmployeeRecord(!!data);
+        };
+
+        checkEmployeeExists();
+    }, [applicant?.id]);
+
     const handleRequestRequirement = async (reqKey: string, reqLabel: string, formUrl: string) => {
         if (!applicant) return;
 
         if (!formUrl) {
-            alert('Form URL not found for this requirement.');
+            toast.error('Form URL not found for this requirement.');
             return;
         }
 
         const email = getAnswer('email');
         if (!email || email === 'N/A' || !email.includes('@')) {
-            alert('Valid applicant email is required to send a request.');
+            toast.error('Valid applicant email is required to send a request.');
             return;
         }
 
@@ -70,10 +96,10 @@ export function ApplicantDetailsPage() {
                 throw new Error(errorMessage);
             }
 
-            alert(`Request for ${reqLabel} sent successfully!`);
+            toast.success(`Request for ${reqLabel} sent successfully!`);
         } catch (err: any) {
             console.error('Request Error:', err);
-            alert('Failed to send request: ' + err.message);
+            toast.error('Failed to send request: ' + err.message);
         } finally {
             setRequestLoading(prev => ({ ...prev, [reqKey]: false }));
         }
@@ -156,10 +182,45 @@ export function ApplicantDetailsPage() {
             if (error) throw error;
 
             await queryClient.invalidateQueries({ queryKey: ['applicant', id] });
-            alert(`Status updated to ${newStatus}`);
+            toast.success(`Status updated to ${newStatus}`);
         } catch (err: any) {
             console.error('Status Update Error:', err);
-            alert('Failed to update status: ' + err.message);
+            toast.error('Failed to update status: ' + err.message);
+        }
+    };
+
+    // Move to Employee Logic
+    const handleMoveToEmployee = async () => {
+        if (!applicant) return;
+
+        const confirmed = await confirm({
+            title: 'Move to Employees',
+            description: `Are you sure you want to move ${getAnswer('fullName')?.first} ${getAnswer('fullName')?.last} to the Employees table?\n\nThis will:\n- Create an employee record\n- Set applicant status to 'Hired'\n- Mark employee as 'Onboarding' (will change to 'Active' when all courses are completed)`,
+            confirmText: 'Move to Employees',
+        });
+
+        if (!confirmed) return;
+
+        setMoveToEmployeeLoading(true);
+        try {
+            const employee = await employeeService.moveApplicantToEmployee(applicant.id);
+
+            await queryClient.invalidateQueries({ queryKey: ['applicant', id] });
+            await queryClient.invalidateQueries({ queryKey: ['applicants'] });
+            await queryClient.invalidateQueries({ queryKey: ['employees'] });
+
+            // Mark that employee record now exists
+            setHasEmployeeRecord(true);
+
+            toast.success(`Successfully moved to Employees! Employee ID: ${employee.employee_id}`);
+
+            // Optionally navigate to employee page after creation
+            navigate('/employees');
+        } catch (err: any) {
+            console.error('Move to Employee Error:', err);
+            toast.error('Failed to move to employees: ' + err.message);
+        } finally {
+            setMoveToEmployeeLoading(false);
         }
     };
 
@@ -188,22 +249,30 @@ export function ApplicantDetailsPage() {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-3">
+            <div className="flex gap-3 flex-wrap">
                 <button
                     onClick={handleSendOffer}
-                    className="flex-1 px-6 py-3 bg-green-600 text-white rounded-[10px] hover:bg-green-700 transition-colors font-medium shadow-lg shadow-green-600/20"
+                    className="flex-1 min-w-[150px] px-6 py-3 bg-green-600 text-white rounded-[10px] hover:bg-green-700 transition-colors font-medium shadow-lg shadow-green-600/20"
                 >
                     Send Offer
                 </button>
                 <button
-                    onClick={() => handleStatusUpdate('interviewing')}
-                    className="flex-1 px-6 py-3 bg-yellow-500 text-white rounded-[10px] hover:bg-yellow-600 transition-colors font-medium shadow-lg shadow-yellow-500/20"
+                    onClick={handleMoveToEmployee}
+                    disabled={moveToEmployeeLoading || hasEmployeeRecord}
+                    className="flex-1 min-w-[150px] px-6 py-3 bg-[#7152F3] text-white rounded-[10px] hover:bg-[rgba(113,82,243,0.9)] transition-colors font-medium shadow-lg shadow-[#7152F3]/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                    <UserCheck size={18} />
+                    {moveToEmployeeLoading ? 'Moving...' : hasEmployeeRecord ? 'Already Employee' : 'Move to Employees'}
+                </button>
+                <button
+                    onClick={() => handleStatusUpdate('Interview')}
+                    className="flex-1 min-w-[150px] px-6 py-3 bg-yellow-500 text-white rounded-[10px] hover:bg-yellow-600 transition-colors font-medium shadow-lg shadow-yellow-500/20"
                 >
                     Interview
                 </button>
                 <button
-                    onClick={() => handleStatusUpdate('rejected')}
-                    className="flex-1 px-6 py-3 bg-red-600 text-white rounded-[10px] hover:bg-red-700 transition-colors font-medium shadow-lg shadow-red-600/20"
+                    onClick={() => handleStatusUpdate('Rejected')}
+                    className="flex-1 min-w-[150px] px-6 py-3 bg-red-600 text-white rounded-[10px] hover:bg-red-700 transition-colors font-medium shadow-lg shadow-red-600/20"
                 >
                     Reject
                 </button>
@@ -405,6 +474,18 @@ export function ApplicantDetailsPage() {
                     </div>
                 )
             }
+
+            {/* Confirmation Dialog */}
+            <ConfirmDialog
+                isOpen={confirmState.isOpen}
+                onClose={handleClose}
+                onConfirm={handleConfirm}
+                title={confirmState.title}
+                description={confirmState.description}
+                confirmText={confirmState.confirmText}
+                cancelText={confirmState.cancelText}
+                variant={confirmState.variant}
+            />
         </div>
     );
 }

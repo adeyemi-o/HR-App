@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApplicants } from '@/hooks/useApplicants';
+import { settingsService } from '@/services/settingsService';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { format } from 'date-fns';
 import { Search, RefreshCw } from 'lucide-react';
@@ -16,7 +17,16 @@ export function ApplicantList() {
     // UI States
     const [filterStatus, setFilterStatus] = useState('all');
     const [filterRole, setFilterRole] = useState('all');
+    const [availableRoles, setAvailableRoles] = useState<string[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
+
+    useEffect(() => {
+        const loadRoles = async () => {
+            const roles = await settingsService.getJobRoles();
+            setAvailableRoles(roles);
+        };
+        loadRoles();
+    }, []);
 
     const filteredApplicants = applicants.filter(applicant => {
         const matchesStatus = filterStatus === 'all' || applicant.status === filterStatus;
@@ -69,13 +79,12 @@ export function ApplicantList() {
                         <select
                             value={filterRole}
                             onChange={(e) => setFilterRole(e.target.value)}
-                            className="w-full px-4 py-2 border border-[rgba(162,161,168,0.1)] rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#7152F3] text-[#16151C] dark:text-white bg-transparent font-light"
+                            className="w-full px-4 py-2 border border-[rgba(162,161,168,0.1)] rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#7152F3] text-[#16151C] dark:text-white bg-transparent dark:bg-card font-light"
                         >
                             <option value="all">All Roles</option>
-                            <option value="Caregiver">Caregiver</option>
-                            <option value="Nurse">Nurse</option>
-                            <option value="CNA">CNA</option>
-                            <option value="HHA">HHA</option>
+                            {availableRoles.map((role) => (
+                                <option key={role} value={role}>{role}</option>
+                            ))}
                         </select>
                     </div>
 
@@ -84,7 +93,7 @@ export function ApplicantList() {
                         <select
                             value={filterStatus}
                             onChange={(e) => setFilterStatus(e.target.value)}
-                            className="w-full px-4 py-2 border border-[rgba(162,161,168,0.1)] rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#7152F3] text-[#16151C] dark:text-white bg-transparent font-light"
+                            className="w-full px-4 py-2 border border-[rgba(162,161,168,0.1)] rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#7152F3] text-[#16151C] dark:text-white bg-transparent dark:bg-card font-light"
                         >
                             <option value="all">All Statuses</option>
                             <option value="New">New</option>

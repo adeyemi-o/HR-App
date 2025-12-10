@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { toast } from '@/hooks/useToast';
 
 export function UpdatePasswordPage() {
     const navigate = useNavigate();
@@ -42,7 +43,7 @@ export function UpdatePasswordPage() {
 
             if (error) throw error;
 
-            alert('Password updated successfully!');
+            toast.success('Password updated successfully!');
             navigate('/');
         } catch (error: any) {
             setError(error.message || 'Failed to update password.');

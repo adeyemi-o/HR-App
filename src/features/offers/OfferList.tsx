@@ -7,6 +7,9 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { format } from 'date-fns';
 import { Eye, Edit, FileText, Send, UserCheck, Trash2 } from 'lucide-react';
 import { SlideOver } from '@/components/ui/SlideOver';
+import { toast } from '@/hooks/useToast';
+import { useConfirm } from '@/hooks/useConfirm';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 type OfferTab = 'Draft' | 'Pending Approval' | 'Sent' | 'Accepted' | 'Declined';
 
@@ -16,6 +19,7 @@ export function OfferList() {
     const [error, setError] = useState<string | null>(null);
     const [processingId, setProcessingId] = useState<string | null>(null);
     const navigate = useNavigate();
+    const { confirm, confirmState, handleClose, handleConfirm } = useConfirm();
 
     // UI States
     const [activeTab, setActiveTab] = useState<OfferTab>('Pending Approval');
@@ -40,16 +44,22 @@ export function OfferList() {
     };
 
     const handleSend = async (offer: Offer) => {
-        if (!confirm(`Are you sure you want to send this offer to ${offer.applicant?.first_name}?`)) return;
+        const confirmed = await confirm({
+            title: 'Send Offer',
+            description: `Are you sure you want to send this offer to ${offer.applicant?.first_name}?`,
+            confirmText: 'Send Offer',
+        });
+
+        if (!confirmed) return;
 
         setProcessingId(offer.id);
         try {
             await offerService.updateStatus(offer.id, 'Sent');
             await loadOffers();
-            alert('Offer sent successfully!');
+            toast.success('Offer sent successfully!');
             setSelectedOffer(null); // Close drawer if open
         } catch (err) {
-            alert('Failed to send offer.');
+            toast.error('Failed to send offer.');
             console.error(err);
         } finally {
             setProcessingId(null);
@@ -57,7 +67,13 @@ export function OfferList() {
     };
 
     const handleOnboard = async (offer: Offer) => {
-        if (!confirm(`Are you sure you want to onboard ${offer.applicant?.first_name}? This will create an employee record.`)) return;
+        const confirmed = await confirm({
+            title: 'Onboard Employee',
+            description: `Are you sure you want to onboard ${offer.applicant?.first_name}? This will create an employee record.`,
+            confirmText: 'Onboard',
+        });
+
+        if (!confirmed) return;
 
         setProcessingId(offer.id);
         try {
@@ -66,10 +82,10 @@ export function OfferList() {
                 start_date: offer.start_date,
                 salary: offer.salary
             });
-            alert('Employee onboarded successfully!');
+            toast.success('Employee onboarded successfully!');
             navigate('/employees');
         } catch (err) {
-            alert('Failed to onboard employee.');
+            toast.error('Failed to onboard employee.');
             console.error(err);
         } finally {
             setProcessingId(null);
@@ -77,16 +93,23 @@ export function OfferList() {
     };
 
     const handleDelete = async (offer: Offer) => {
-        if (!confirm(`Are you sure you want to delete this offer for ${offer.applicant?.first_name} ${offer.applicant?.last_name}? This action cannot be undone.`)) return;
+        const confirmed = await confirm({
+            title: 'Delete Offer',
+            description: `Are you sure you want to delete this offer for ${offer.applicant?.first_name} ${offer.applicant?.last_name}? This action cannot be undone.`,
+            confirmText: 'Delete',
+            variant: 'danger',
+        });
+
+        if (!confirmed) return;
 
         setProcessingId(offer.id);
         try {
             await offerService.deleteOffer(offer.id);
             await loadOffers();
-            alert('Offer deleted successfully!');
+            toast.success('Offer deleted successfully!');
             setSelectedOffer(null);
         } catch (err) {
-            alert('Failed to delete offer.');
+            toast.error('Failed to delete offer.');
             console.error(err);
         } finally {
             setProcessingId(null);
@@ -384,6 +407,18 @@ export function OfferList() {
                     </div>
                 )}
             </SlideOver>
+
+            {/* Confirmation Dialog */}
+            <ConfirmDialog
+                isOpen={confirmState.isOpen}
+                onClose={handleClose}
+                onConfirm={handleConfirm}
+                title={confirmState.title}
+                description={confirmState.description}
+                confirmText={confirmState.confirmText}
+                cancelText={confirmState.cancelText}
+                variant={confirmState.variant}
+            />
         </div>
     );
 }

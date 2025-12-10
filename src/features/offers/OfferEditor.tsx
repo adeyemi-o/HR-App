@@ -7,6 +7,7 @@ import type { Applicant } from '@/types';
 import { ArrowLeft, Save, User, Briefcase, DollarSign, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { OfferLetterDraftPanel } from '@/components/ai/OfferLetterDraftPanel';
+import { toast } from '@/hooks/useToast';
 
 interface OfferFormData {
     applicant_id: string;
@@ -93,7 +94,7 @@ export function OfferEditor() {
             navigate('/offers');
         } catch (error) {
             console.error('Failed to save offer', error);
-            alert('Failed to save offer. Please try again.');
+            toast.error('Failed to save offer. Please try again.');
         } finally {
             setLoading(false);
         }

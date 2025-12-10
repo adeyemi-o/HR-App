@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { userService } from '@/services/userService';
 import { Shield, User, Mail, Briefcase } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { toast } from '@/hooks/useToast';
 
 export function ProfilePage() {
     const [loading, setLoading] = useState(true);
@@ -76,16 +77,16 @@ export function ProfilePage() {
                 formData.phone_number !== (profile?.phone_number || '');
 
             if (!hasChanges) {
-                alert('No changes detected');
+                toast.info('No changes detected');
                 return;
             }
 
             await userService.createProfileChangeRequest(formData);
-            alert('Profile update request submitted for approval');
+            toast.success('Profile update request submitted for approval');
             loadPendingRequest();
         } catch (error: any) {
             console.error('Failed to submit request', error);
-            alert(error.message || 'Failed to submit request');
+            toast.error(error.message || 'Failed to submit request');
         } finally {
             setRequestLoading(false);
         }
@@ -94,7 +95,7 @@ export function ProfilePage() {
     const handleChangePassword = async (e: React.FormEvent) => {
         e.preventDefault();
         if (newPassword !== confirmPassword) {
-            alert("Passwords don't match");
+            toast.error("Passwords don't match");
             return;
         }
 
@@ -106,12 +107,12 @@ export function ProfilePage() {
 
             if (error) throw error;
 
-            alert('Password updated successfully');
+            toast.success('Password updated successfully');
             setNewPassword('');
             setConfirmPassword('');
         } catch (error: any) {
             console.error('Failed to update password', error);
-            alert(error.message || 'Failed to update password');
+            toast.error(error.message || 'Failed to update password');
         } finally {
             setPasswordLoading(false);
         }

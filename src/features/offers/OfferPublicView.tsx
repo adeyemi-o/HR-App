@@ -4,6 +4,9 @@ import { offerService } from '@/services/offerService';
 import type { Offer } from '@/types';
 import { format } from 'date-fns';
 import { CheckCircle, XCircle, FileText } from 'lucide-react';
+import { toast } from '@/hooks/useToast';
+import { useConfirm } from '@/hooks/useConfirm';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 export function OfferPublicView() {
     const { token } = useParams<{ token: string }>();
@@ -12,6 +15,7 @@ export function OfferPublicView() {
     const [error, setError] = useState<string | null>(null);
     const [actionLoading, setActionLoading] = useState(false);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
+    const { confirm, confirmState, handleClose, handleConfirm } = useConfirm();
 
     useEffect(() => {
         if (token) {
@@ -34,7 +38,14 @@ export function OfferPublicView() {
     const handleResponse = async (status: 'Accepted' | 'Declined') => {
         if (!offer || !token) return;
 
-        if (!confirm(`Are you sure you want to ${status.toLowerCase()} this offer?`)) return;
+        const confirmed = await confirm({
+            title: `${status === 'Accepted' ? 'Accept' : 'Decline'} Offer`,
+            description: `Are you sure you want to ${status.toLowerCase()} this offer?`,
+            confirmText: status === 'Accepted' ? 'Accept' : 'Decline',
+            variant: status === 'Declined' ? 'danger' : 'default',
+        });
+
+        if (!confirmed) return;
 
         setActionLoading(true);
         try {
@@ -46,7 +57,7 @@ export function OfferPublicView() {
                     : 'You have declined the offer.'
             );
         } catch (err: any) {
-            alert(`Failed to update offer status: ${err.message || err}`);
+            toast.error(`Failed to update offer status: ${err.message || err}`);
             console.error(err);
         } finally {
             setActionLoading(false);
@@ -163,6 +174,18 @@ export function OfferPublicView() {
                     </div>
                 </div>
             </div>
+
+            {/* Confirmation Dialog */}
+            <ConfirmDialog
+                isOpen={confirmState.isOpen}
+                onClose={handleClose}
+                onConfirm={handleConfirm}
+                title={confirmState.title}
+                description={confirmState.description}
+                confirmText={confirmState.confirmText}
+                cancelText={confirmState.cancelText}
+                variant={confirmState.variant}
+            />
         </div>
     );
 }

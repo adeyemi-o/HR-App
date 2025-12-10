@@ -10,9 +10,13 @@ import {
     Eye,
     EyeOff,
     Plus,
-    X
+    X,
+    Trash2
 } from 'lucide-react';
 import { userService, type UserProfile } from '@/services/userService';
+import { toast } from '@/hooks/useToast';
+import { useConfirm } from '@/hooks/useConfirm';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 type SettingsTab = 'Integrations' | 'System Settings' | 'Team';
 
@@ -26,13 +30,29 @@ export function SettingsPage() {
     const [inviteEmail, setInviteEmail] = useState('');
     const [inviteLoading, setInviteLoading] = useState(false);
 
+    // Job Roles State
+    const [jobRoles, setJobRoles] = useState<string[]>([]);
+    const [newRole, setNewRole] = useState('');
+
+    const { confirm, confirmState, handleClose, handleConfirm } = useConfirm();
+
     useEffect(() => {
         if (activeTab === 'Team') {
             loadUsers();
         } else {
             loadSettings();
+            loadJobRoles();
         }
     }, [activeTab]);
+
+    const loadJobRoles = async () => {
+        try {
+            const roles = await settingsService.getJobRoles();
+            setJobRoles(roles);
+        } catch (error) {
+            console.error('Failed to load job roles', error);
+        }
+    };
 
     const loadSettings = async () => {
         try {
@@ -60,10 +80,52 @@ export function SettingsPage() {
     const handleSave = async () => {
         try {
             await settingsService.updateSettings(settingsMap);
-            alert('Settings saved successfully');
+            toast.success('Settings saved successfully');
         } catch (error) {
             console.error('Failed to save settings', error);
-            alert('Failed to save settings');
+            toast.error('Failed to save settings');
+        }
+    };
+
+    const handleAddRole = async () => {
+        if (!newRole.trim()) return;
+        if (jobRoles.includes(newRole.trim())) {
+            toast.error('Role already exists');
+            return;
+        }
+
+        const updatedRoles = [...jobRoles, newRole.trim()];
+        setJobRoles(updatedRoles);
+        setNewRole('');
+
+        try {
+            await settingsService.updateJobRoles(updatedRoles);
+            toast.success('Role added successfully');
+        } catch (error) {
+            console.error('Failed to save role', error);
+            toast.error('Failed to save role');
+        }
+    };
+
+    const handleDeleteRole = async (roleToDelete: string) => {
+        const confirmed = await confirm({
+            title: 'Delete Role',
+            description: `Are you sure you want to delete "${roleToDelete}"? This will not affect existing applicants but will remove it from the filter list.`,
+            confirmText: 'Delete',
+            variant: 'danger',
+        });
+
+        if (!confirmed) return;
+
+        const updatedRoles = jobRoles.filter(role => role !== roleToDelete);
+        setJobRoles(updatedRoles);
+
+        try {
+            await settingsService.updateJobRoles(updatedRoles);
+            toast.success('Role removed');
+        } catch (error) {
+            console.error('Failed to remove role', error);
+            toast.error('Failed to remove role');
         }
     };
 
@@ -87,15 +149,15 @@ export function SettingsPage() {
                 throw new Error(JSON.stringify(data, null, 2));
             }
 
-            alert('Invitation sent successfully!');
+            toast.success('Invitation sent successfully!');
             setShowInviteModal(false);
             setInviteEmail('');
             // Refresh users list
             loadUsers();
         } catch (error: any) {
             console.error('Failed to invite user', error);
-            // Alert the full error object for debugging
-            alert(error.message || JSON.stringify(error, null, 2));
+            // Show the full error object for debugging
+            toast.error(error.message || JSON.stringify(error, null, 2));
         } finally {
             setInviteLoading(false);
         }
@@ -130,27 +192,42 @@ export function SettingsPage() {
     };
 
     const handleApprove = async (requestId: string) => {
-        if (!confirm('Are you sure you want to approve this request?')) return;
+        const confirmed = await confirm({
+            title: 'Approve Request',
+            description: 'Are you sure you want to approve this request?',
+            confirmText: 'Approve',
+        });
+
+        if (!confirmed) return;
+
         try {
             await userService.approveRequest(requestId);
-            alert('Request approved');
+            toast.success('Request approved');
             loadRequests();
             loadUsers();
         } catch (error) {
             console.error('Failed to approve request', error);
-            alert('Failed to approve request');
+            toast.error('Failed to approve request');
         }
     };
 
     const handleReject = async (requestId: string) => {
-        if (!confirm('Are you sure you want to reject this request?')) return;
+        const confirmed = await confirm({
+            title: 'Reject Request',
+            description: 'Are you sure you want to reject this request?',
+            confirmText: 'Reject',
+            variant: 'danger',
+        });
+
+        if (!confirmed) return;
+
         try {
             await userService.rejectRequest(requestId);
-            alert('Request rejected');
+            toast.success('Request rejected');
             loadRequests();
         } catch (error) {
             console.error('Failed to reject request', error);
-            alert('Failed to reject request');
+            toast.error('Failed to reject request');
         }
     };
 
@@ -183,12 +260,12 @@ export function SettingsPage() {
             }
 
             await userService.adminUpdateUser(editingUser.id, updates);
-            alert('User updated successfully');
+            toast.success('User updated successfully');
             setEditingUser(null);
             loadUsers();
         } catch (error) {
             console.error('Failed to update user', error);
-            alert('Failed to update user');
+            toast.error('Failed to update user');
         } finally {
             setEditLoading(false);
         }
@@ -593,6 +670,53 @@ export function SettingsPage() {
                                 </div>
                             </div>
 
+                            {/* Job Roles Management */}
+                            <div className="p-6 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg">
+                                <h4 className="text-slate-900 dark:text-white mb-4">Job Roles</h4>
+                                <p className="text-sm text-slate-600 dark:text-[#A2A1A8] mb-4">
+                                    Manage the list of job roles available for applicants and filtering.
+                                </p>
+                                <div className="space-y-4">
+                                    {/* Add Role Input */}
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={newRole}
+                                            onChange={(e) => setNewRole(e.target.value)}
+                                            placeholder="Enter new job role (e.g. Physical Therapist)"
+                                            className="flex-1 px-4 py-2 border border-gray-200 dark:border-[rgba(162,161,168,0.1)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-transparent text-[#16151C] dark:text-white"
+                                        />
+                                        <button
+                                            onClick={handleAddRole}
+                                            disabled={!newRole.trim()}
+                                            className="px-4 py-2 bg-[#7152F3] text-white rounded-lg hover:bg-[rgba(113,82,243,0.9)] disabled:opacity-50 transition-colors font-light whitespace-nowrap"
+                                        >
+                                            <Plus size={18} className="mr-2 inline" />
+                                            Add Role
+                                        </button>
+                                    </div>
+
+                                    {/* Roles List */}
+                                    <div className="space-y-2">
+                                        {jobRoles.map((role, index) => (
+                                            <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg group hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                                                <span className="text-slate-700 dark:text-[#A2A1A8] font-light">{role}</span>
+                                                <button
+                                                    onClick={() => handleDeleteRole(role)}
+                                                    className="text-slate-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 p-1"
+                                                    title="Delete Role"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                        ))}
+                                        {jobRoles.length === 0 && (
+                                            <p className="text-sm text-slate-500 dark:text-[#A2A1A8] italic">No active job roles configured.</p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
                             <div className="flex justify-end pt-4">
                                 <button
                                     onClick={handleSave}
@@ -875,6 +999,18 @@ export function SettingsPage() {
                     )}
                 </div>
             </div>
+
+            {/* Confirmation Dialog */}
+            <ConfirmDialog
+                isOpen={confirmState.isOpen}
+                onClose={handleClose}
+                onConfirm={handleConfirm}
+                title={confirmState.title}
+                description={confirmState.description}
+                confirmText={confirmState.confirmText}
+                cancelText={confirmState.cancelText}
+                variant={confirmState.variant}
+            />
         </div >
     );
 }

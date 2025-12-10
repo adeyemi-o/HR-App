@@ -45,5 +45,30 @@ export const settingsService = {
         );
 
         await Promise.all(updates);
+    },
+
+    async getJobRoles(): Promise<string[]> {
+        const settings = await this.getSettings();
+        const rolesJson = settings['job_roles'];
+
+        if (!rolesJson) {
+            // Default roles if none exist in settings
+            return [
+                "Licensed Practical Nurse (LPN)",
+                "Direct Care Worker",
+                "Registered Nurse (RN)"
+            ];
+        }
+
+        try {
+            return JSON.parse(rolesJson);
+        } catch (e) {
+            console.error('Failed to parse job roles from settings:', e);
+            return [];
+        }
+    },
+
+    async updateJobRoles(roles: string[]): Promise<void> {
+        await this.updateSetting('job_roles', JSON.stringify(roles));
     }
 };

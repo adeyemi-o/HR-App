@@ -24,10 +24,12 @@ import { ProfilePage } from '@/features/profile/ProfilePage';
 // const Dashboard = () => <div><h1 className="text-2xl font-bold">Dashboard</h1><p className="mt-4">Welcome to the HR Command Centre.</p></div>;
 
 import { ThemeProvider } from '@/components/theme-provider';
+import { Toaster } from 'sonner';
 
 function App() {
   return (
     <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
+      <Toaster position="top-right" richColors closeButton />
       <Router>
         <Routes>
           <Route path="/login" element={<LoginPage />} />

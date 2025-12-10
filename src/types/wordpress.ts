@@ -27,6 +27,7 @@ export interface CourseProgress {
     steps_completed: number;
     steps_total: number;
     percentage: number;
+    course_title?: string;
     last_active?: string;
     completion_date?: string;
 }

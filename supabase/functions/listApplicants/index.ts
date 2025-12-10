@@ -174,13 +174,23 @@ serve(async (req) => {
         const updates = uniqueApplicants.filter((a: any) => a.id);
         const inserts = uniqueApplicants.filter((a: any) => !a.id);
 
+        // Deduplicate updates by ID (in case same record appears multiple times)
+        const uniqueUpdatesMap = new Map();
+        updates.forEach((app: any) => {
+            if (app.id) {
+                // Keep the latest version if duplicate IDs exist
+                uniqueUpdatesMap.set(app.id, app);
+            }
+        });
+        const deduplicatedUpdates = Array.from(uniqueUpdatesMap.values());
+
         let allUpsertedData: any[] = [];
 
         // 1. Process Updates (Match by ID)
-        if (updates.length > 0) {
+        if (deduplicatedUpdates.length > 0) {
             const { data: updatedData, error: updateError } = await supabase
                 .from('applicants')
-                .upsert(updates, { onConflict: 'id' })
+                .upsert(deduplicatedUpdates, { onConflict: 'id' })
                 .select()
 
             if (updateError) {
@@ -192,14 +202,37 @@ serve(async (req) => {
 
         // 2. Process Inserts (Match by JotForm ID)
         if (inserts.length > 0) {
+            // First try using jotform_id conflict resolution
             const { data: insertedData, error: insertError } = await supabase
                 .from('applicants')
                 .upsert(inserts, { onConflict: 'jotform_id' })
                 .select()
 
             if (insertError) {
-                console.error('Failed to insert applicants:', insertError)
-                throw new Error(`Failed to insert applicants: ${insertError.message}`)
+                // If there's still an email conflict, try to handle it gracefully
+                if (insertError.code === '23505' && insertError.message.includes('email')) {
+                    console.error('Email conflict detected, attempting individual inserts with conflict resolution')
+
+                    // Process each insert individually with email conflict handling
+                    for (const applicant of inserts) {
+                        try {
+                            // Try to upsert with email as the conflict key
+                            const { error: individualError } = await supabase
+                                .from('applicants')
+                                .upsert(applicant, { onConflict: 'email' })
+                                .select()
+
+                            if (individualError) {
+                                console.error(`Failed to upsert applicant ${applicant.email}:`, individualError)
+                            }
+                        } catch (err) {
+                            console.error(`Error processing applicant ${applicant.email}:`, err)
+                        }
+                    }
+                } else {
+                    console.error('Failed to insert applicants:', insertError)
+                    throw new Error(`Failed to insert applicants: ${insertError.message} (Code: ${insertError.code})`)
+                }
             }
             if (insertedData) allUpsertedData = [...allUpsertedData, ...insertedData];
         }
@@ -209,7 +242,13 @@ serve(async (req) => {
         })
 
     } catch (error: any) {
-        return new Response(JSON.stringify({ error: error.message }), {
+        console.error('[listApplicants] Error:', error)
+        return new Response(JSON.stringify({
+            error: error.message || 'Unknown error occurred',
+            details: error.details || null,
+            hint: error.hint || null,
+            code: error.code || null
+        }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 400,
         })
