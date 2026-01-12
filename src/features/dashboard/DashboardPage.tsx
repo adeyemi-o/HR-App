@@ -19,22 +19,33 @@ export function DashboardPage() {
     const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
     const [onboardingSnapshot, setOnboardingSnapshot] = useState<OnboardingEmployee[]>([]);
     const [loading, setLoading] = useState(true);
+    const [onboardingLoading, setOnboardingLoading] = useState(true);
 
     useEffect(() => {
         const loadDashboardData = async () => {
             try {
-                const [statsData, activityData, onboardingData] = await Promise.all([
+                // 1. Load fast internal data first
+                const [statsData, activityData] = await Promise.all([
                     dashboardService.getStats(),
-                    dashboardService.getRecentActivity(),
-                    dashboardService.getOnboardingSnapshot()
+                    dashboardService.getRecentActivity()
                 ]);
 
                 setStats(statsData);
                 setRecentActivity(activityData);
-                setOnboardingSnapshot(onboardingData);
+                setLoading(false); // Unblock main UI immediately
+
+                // 2. Load slow external data (LearnDash) separately
+                try {
+                    const onboardingData = await dashboardService.getOnboardingSnapshot();
+                    setOnboardingSnapshot(onboardingData);
+                } catch (err) {
+                    console.error('Failed to load onboarding snapshot:', err);
+                } finally {
+                    setOnboardingLoading(false);
+                }
+
             } catch (error) {
                 console.error('Failed to load dashboard data:', error);
-            } finally {
                 setLoading(false);
             }
         };
@@ -57,7 +68,7 @@ export function DashboardPage() {
             </div>
 
             {/* Metrics Grid - Top Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                 <StatsCard
                     title="Total Applicants"
                     value={stats.totalApplicants.toString()}
@@ -89,7 +100,7 @@ export function DashboardPage() {
             </div>
 
             {/* Metrics Grid - Bottom Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                 <StatsCard
                     title="Total Employees"
                     value={stats.totalEmployees.toString()}
@@ -132,7 +143,7 @@ export function DashboardPage() {
 
                 {/* Right Column - Onboarding Snapshot */}
                 <div className="lg:col-span-1">
-                    <OnboardingSnapshot employees={onboardingSnapshot} />
+                    <OnboardingSnapshot employees={onboardingSnapshot} loading={onboardingLoading} />
                     <QuickActions />
                 </div>
             </div>

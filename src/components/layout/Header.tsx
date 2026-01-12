@@ -12,7 +12,13 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export function Header() {
+import { Menu } from 'lucide-react';
+
+interface HeaderProps {
+    onOpenMobileNav: () => void;
+}
+
+export function Header({ onOpenMobileNav }: HeaderProps) {
     const navigate = useNavigate();
     const [profile, setProfile] = useState<any>(null);
 
@@ -39,20 +45,29 @@ export function Header() {
     };
 
     return (
-        <header className="bg-[#F9FAFB]/80 dark:bg-background/80 backdrop-blur-md h-[82px] fixed top-5 right-8 left-[340px] z-10 px-0 transition-all duration-200">
+
+        <header className="bg-[#F9FAFB]/80 dark:bg-background/80 backdrop-blur-md h-[82px] fixed top-0 lg:top-5 right-0 lg:right-8 left-0 lg:left-[340px] z-40 px-6 lg:px-0 transition-all duration-200 border-b lg:border-none border-[rgba(162,161,168,0.1)]">
             <div className="h-full flex items-center justify-between">
-                {/* Greeting */}
-                <div>
-                    <h1 className="text-[#16151C] dark:text-white text-[20px] font-semibold leading-[30px]">
-                        Hello {profile?.first_name || 'User'} 👋🏻
-                    </h1>
-                    <p className="text-[#A2A1A8] text-[14px] font-light leading-[22px]">Good Morning</p>
+                {/* Left Side: Hamburger & Greeting */}
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={onOpenMobileNav}
+                        className="lg:hidden p-2 -ml-2 text-[#16151C] dark:text-white hover:bg-[rgba(162,161,168,0.1)] rounded-lg transition-colors"
+                    >
+                        <Menu size={24} />
+                    </button>
+                    <div>
+                        <h1 className="text-[#16151C] dark:text-white text-[20px] font-semibold leading-[30px]">
+                            Hello {profile?.first_name || 'User'} 👋🏻
+                        </h1>
+                        <p className="text-[#A2A1A8] text-[14px] font-light leading-[22px]">Good Morning</p>
+                    </div>
                 </div>
 
                 {/* Right Side - Search, Notification, Profile */}
                 <div className="flex items-center gap-5">
                     {/* Search */}
-                    <div className="relative">
+                    <div className="relative hidden md:block">
                         <div className="flex items-center gap-3 px-4 py-[13px] border border-[rgba(162,161,168,0.1)] rounded-[10px] w-[261px] bg-white dark:bg-card">
                             <Search size={20} className="text-[#16151C] dark:text-gray-400" strokeWidth={1.5} />
                             <input

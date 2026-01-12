@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
-import { useApplicants } from '@/hooks/useApplicants';
+import { useApplicants, useSyncApplicants } from '@/hooks/useApplicants';
 import { settingsService } from '@/services/settingsService';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { format } from 'date-fns';
 import { Search, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 export function ApplicantList() {
-    const { data: applicants = [], isLoading: loading, error, refetch } = useApplicants();
+    const { data: applicants = [], isLoading: loading, error } = useApplicants();
+    const syncMutation = useSyncApplicants();
     const navigate = useNavigate();
 
     console.log('ApplicantList: applicants data:', applicants);
@@ -43,17 +45,23 @@ export function ApplicantList() {
     return (
         <div className="space-y-6">
             {/* Page Header */}
-            <div className="flex items-center justify-between">
-                <div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="pl-1">
                     <h1 className="text-[#16151C] dark:text-white font-semibold text-xl">Applicants</h1>
                     <p className="text-[#A2A1A8] font-light text-sm">Manage pre-hire applicants from JotForm</p>
                 </div>
                 <button
-                    onClick={() => refetch()}
-                    className="flex items-center gap-2 px-4 py-2 bg-[#7152F3] text-white rounded-[10px] hover:bg-[rgba(113,82,243,0.9)] transition-colors font-light"
+                    onClick={() => {
+                        syncMutation.mutate(undefined, {
+                            onSuccess: () => toast.success('Synced successfully with JotForm!'),
+                            onError: (err) => toast.error(`Sync failed: ${err.message}`),
+                        });
+                    }}
+                    disabled={syncMutation.isPending}
+                    className="flex justify-center items-center gap-2 px-6 py-2.5 sm:px-4 sm:py-2 bg-[#7152F3] text-white rounded-[10px] hover:bg-[rgba(113,82,243,0.9)] transition-colors font-light whitespace-nowrap w-full sm:w-auto text-sm sm:text-base disabled:opacity-50"
                 >
-                    <RefreshCw size={16} />
-                    Refresh List
+                    <RefreshCw size={16} className={syncMutation.isPending ? 'animate-spin' : ''} />
+                    {syncMutation.isPending ? 'Syncing...' : 'Sync from JotForm'}
                 </button>
             </div>
 

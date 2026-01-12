@@ -4,7 +4,7 @@ import { wordpressService } from '@/services/wordpressService';
 import type { Employee } from '@/types';
 import type { CourseProgress } from '@/types/wordpress';
 import { format } from 'date-fns';
-import { Search, Mail, Phone, MapPin, Calendar, Building, MoreHorizontal, BookOpen, RefreshCw, Edit2, Save, X } from 'lucide-react';
+import { Search, Mail, Phone, MapPin, Calendar, Building, MoreHorizontal, BookOpen, RefreshCw, Edit2, Save, X, Plus } from 'lucide-react';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { SlideOver } from '@/components/ui/SlideOver';
 import { OnboardingSummaryPanel } from '@/components/ai/OnboardingSummaryPanel';
@@ -214,12 +214,15 @@ export function EmployeeList() {
     return (
         <div className="space-y-6">
             {/* Page Header */}
-            <div className="flex items-center justify-between">
-                <div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="pl-1">
                     <h1 className="text-[#16151C] dark:text-white font-semibold text-xl">Employees</h1>
                     <p className="text-[#A2A1A8] font-light text-sm">Manage your team members and their roles</p>
                 </div>
-                <button className="px-4 py-2 bg-[#7152F3] text-white rounded-[10px] hover:bg-[rgba(113,82,243,0.9)] transition-colors font-light">
+                <button
+                    className="flex justify-center items-center gap-2 px-6 py-2.5 sm:px-4 sm:py-2 bg-[#7152F3] text-white rounded-[10px] hover:bg-[rgba(113,82,243,0.9)] transition-colors font-light whitespace-nowrap w-full sm:w-auto text-sm sm:text-base"
+                >
+                    <Plus size={16} />
                     Add Employee
                 </button>
             </div>

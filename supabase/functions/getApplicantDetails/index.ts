@@ -43,19 +43,50 @@ serve(async (req) => {
         // Check if applicantId is a UUID (Supabase ID) and resolve to JotForm ID
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         let supabaseUuid: string | null = null;
-        let jotformId: string = applicantId;
+        let jotformId: string | null = applicantId;
 
         if (uuidRegex.test(applicantId)) {
             supabaseUuid = applicantId; // Preserve the UUID
             const { data: applicant, error: dbError } = await supabase
                 .from('applicants')
-                .select('jotform_id')
+                .select('*')  // Select all fields for potential fallback
                 .eq('id', applicantId)
                 .single()
 
-            if (dbError || !applicant?.jotform_id) {
+            if (dbError || !applicant) {
                 throw new Error(`Could not find applicant with ID ${applicantId}`)
             }
+
+            // If no jotform_id, return DB fallback immediately
+            if (!applicant.jotform_id) {
+                console.warn(`[getApplicantDetails] Applicant ${applicantId} has no jotform_id, returning DB data`);
+
+                const fallbackResponse = {
+                    id: applicant.id,
+                    created_at: applicant.created_at,
+                    status: applicant.status,
+                    answers: {
+                        fullName: { first: applicant.first_name, last: applicant.last_name },
+                        email: applicant.email,
+                        phoneNumber: applicant.phone,
+                        positionApplied: applicant.position_applied,
+                    },
+                    resume_url: applicant.resume_url,
+                    resume_text: null,
+                    emergency_contact: null,
+                    i9_eligibility: null,
+                    vaccination: null,
+                    licenses: null,
+                    background_check: null,
+                    _fallback: true,
+                    _reason: 'no_jotform_id',
+                };
+
+                return new Response(JSON.stringify(fallbackResponse), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                });
+            }
+
             jotformId = applicant.jotform_id
         }
 
@@ -75,10 +106,62 @@ serve(async (req) => {
         // Validate critical form IDs
         if (!FORMS.APPLICATION) throw new Error('Missing Application Form ID in settings')
 
-        // 1. Fetch Main Application Details
-        const mainResponse = await fetch(`https://api.jotform.com/submission/${applicantId}?apiKey=${JOTFORM_API_KEY}`)
-        if (!mainResponse.ok) throw new Error('Failed to fetch application details')
-        const mainData = await mainResponse.json()
+        // 1. Fetch Main Application Details from JotForm
+        let mainData: any = null;
+        let jotformError: string | null = null;
+
+        try {
+            const mainResponse = await fetch(`https://api.jotform.com/submission/${applicantId}?apiKey=${JOTFORM_API_KEY}`)
+            if (!mainResponse.ok) {
+                jotformError = `JotForm API returned ${mainResponse.status}`;
+            } else {
+                mainData = await mainResponse.json();
+            }
+        } catch (e: any) {
+            jotformError = e.message;
+        }
+
+        // Fallback: If JotForm fetch failed, return data from local DB
+        if (!mainData || jotformError) {
+            console.warn(`[getApplicantDetails] JotForm unavailable (${jotformError}), falling back to DB`);
+
+            const { data: dbApplicant, error: dbError } = await supabase
+                .from('applicants')
+                .select('*')
+                .eq('id', supabaseUuid || applicantId)
+                .single();
+
+            if (dbError || !dbApplicant) {
+                throw new Error(`Could not find applicant data: ${dbError?.message || 'Not found'}`);
+            }
+
+            // Build a minimal response from DB data
+            const fallbackResponse = {
+                id: dbApplicant.id,
+                created_at: dbApplicant.created_at,
+                status: dbApplicant.status,
+                answers: {
+                    fullName: { first: dbApplicant.first_name, last: dbApplicant.last_name },
+                    email: dbApplicant.email,
+                    phoneNumber: dbApplicant.phone,
+                    positionApplied: dbApplicant.position_applied,
+                },
+                resume_url: dbApplicant.resume_url,
+                resume_text: null,
+                emergency_contact: null,
+                i9_eligibility: null,
+                vaccination: null,
+                licenses: null,
+                background_check: null,
+                _fallback: true,
+                _jotform_error: jotformError,
+            };
+
+            return new Response(JSON.stringify(fallbackResponse), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+        }
+
 
         // Helper to extract answers
         const extractAnswers = (submission: any) => {

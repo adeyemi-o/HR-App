@@ -183,12 +183,19 @@ export function AIDashboardPage() {
                                                 {(log.tokens_in + log.tokens_out).toLocaleString()}
                                             </td>
                                             <td className="px-4 py-3">
-                                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${log.success
+                                                <div className="flex flex-col">
+                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium w-fit ${log.success
                                                         ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                                                         : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                                                    }`}>
-                                                    {log.success ? 'success' : 'error'}
-                                                </span>
+                                                        }`}>
+                                                        {log.success ? 'success' : 'error'}
+                                                    </span>
+                                                    {log.error && (
+                                                        <span className="text-xs text-red-500 mt-1 max-w-[200px] truncate" title={log.error}>
+                                                            {log.error}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </td>
                                         </tr>
                                     ))

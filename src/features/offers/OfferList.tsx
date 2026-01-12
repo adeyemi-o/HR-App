@@ -5,7 +5,7 @@ import { employeeService } from '@/services/employeeService';
 import type { Offer } from '@/types';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { format } from 'date-fns';
-import { Eye, Edit, FileText, Send, UserCheck, Trash2 } from 'lucide-react';
+import { Eye, Edit, FileText, Send, UserCheck, Trash2, Plus } from 'lucide-react';
 import { SlideOver } from '@/components/ui/SlideOver';
 import { toast } from '@/hooks/useToast';
 import { useConfirm } from '@/hooks/useConfirm';
@@ -133,15 +133,16 @@ export function OfferList() {
     return (
         <div className="space-y-6">
             {/* Page Header */}
-            <div className="flex items-center justify-between">
-                <div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="pl-1">
                     <h1 className="text-[#16151C] dark:text-white font-semibold text-xl">Offers</h1>
                     <p className="text-[#A2A1A8] font-light text-sm">Manage offer letters and approvals</p>
                 </div>
                 <button
                     onClick={() => navigate('/offers/new')}
-                    className="px-4 py-2 bg-[#7152F3] text-white rounded-[10px] hover:bg-[rgba(113,82,243,0.9)] transition-colors font-light"
+                    className="flex justify-center items-center gap-2 px-6 py-2.5 sm:px-4 sm:py-2 bg-[#7152F3] text-white rounded-[10px] hover:bg-[rgba(113,82,243,0.9)] transition-colors font-light whitespace-nowrap w-full sm:w-auto text-sm sm:text-base"
                 >
+                    <Plus size={16} />
                     Create New Offer
                 </button>
             </div>

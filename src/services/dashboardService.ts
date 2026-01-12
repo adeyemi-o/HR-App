@@ -1,4 +1,6 @@
 import { supabase } from '@/lib/supabase';
+import { wordpressService } from './wordpressService';
+import type { CourseProgress } from '@/types/wordpress';
 
 export interface DashboardStats {
     totalApplicants: number;
@@ -8,6 +10,9 @@ export interface DashboardStats {
     totalEmployees: number;
     activeEmployees: number;
 }
+// ... (rest of imports/interfaces remain same until getOnboardingSnapshot)
+
+
 
 export interface ActivityItem {
     id: string;
@@ -100,20 +105,46 @@ export const dashboardService = {
     },
 
     async getOnboardingSnapshot(): Promise<OnboardingEmployee[]> {
+        // 1. Fetch employees with their wp_user_id
         const { data } = await supabase
             .from('employees')
-            .select('id, first_name, last_name, position, status')
+            .select('id, first_name, last_name, position, status, created_at, wp_user_id')
             .eq('status', 'Onboarding')
+            .order('created_at', { ascending: false })
             .limit(5);
 
         if (!data) return [];
 
-        return data.map(emp => ({
-            id: emp.id,
-            name: `${emp.first_name} ${emp.last_name}`,
-            role: emp.position || 'Unknown',
-            progress: Math.floor(Math.random() * 100), // Mock progress for now
-            status: emp.status
+        // 2. Fetch progress for each employee from LearnDash (in parallel)
+        const employeesWithProgress = await Promise.all(data.map(async (emp) => {
+            let progressPercentage = 0;
+
+            if (emp.wp_user_id) {
+                try {
+                    // Fetch real course progress
+                    const courses = await wordpressService.getCourseProgress(emp.wp_user_id, false);
+
+                    if (courses && courses.length > 0) {
+                        // Calculate average progress across all assigned courses
+                        // Or completion rate (completed / total)
+                        const totalProgress = courses.reduce((sum: number, course: CourseProgress) => sum + (course.percentage || 0), 0);
+                        progressPercentage = Math.round(totalProgress / courses.length);
+                    }
+                } catch (err) {
+                    console.error(`Failed to fetch progress for employee ${emp.id} (WP User ${emp.wp_user_id})`, err);
+                    // Keep progress at 0 on error
+                }
+            }
+
+            return {
+                id: emp.id,
+                name: `${emp.first_name} ${emp.last_name}`,
+                role: emp.position || 'Unknown',
+                progress: progressPercentage,
+                status: emp.status
+            };
         }));
+
+        return employeesWithProgress;
     }
 };

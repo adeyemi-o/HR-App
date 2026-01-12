@@ -288,17 +288,17 @@ export function SettingsPage() {
             </div>
 
             {/* Settings Layout */}
-            <div className="flex gap-6">
+            <div className="flex flex-col lg:flex-row gap-6">
                 {/* Sidebar Tabs */}
-                <div className="w-64 bg-white dark:bg-card rounded-[20px] border border-[rgba(162,161,168,0.1)] p-4">
-                    <nav className="space-y-2">
+                <div className="w-full lg:w-64 bg-white dark:bg-card rounded-[20px] border border-[rgba(162,161,168,0.1)] p-4">
+                    <nav className="flex lg:flex-col overflow-x-auto lg:overflow-visible space-x-2 lg:space-x-0 lg:space-y-2 pb-2 lg:pb-0 scrollbar-hide">
                         {tabs.map((tab) => {
                             const Icon = tab.icon;
                             return (
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-[10px] transition-colors font-light ${activeTab === tab.id
+                                    className={`w-auto flex-shrink-0 lg:w-full flex items-center gap-3 px-4 py-3 rounded-[10px] transition-colors font-light whitespace-nowrap ${activeTab === tab.id
                                         ? 'bg-[rgba(113,82,243,0.05)] text-[#7152F3] font-semibold'
                                         : 'text-[#16151C] dark:text-[#A2A1A8] hover:bg-[rgba(162,161,168,0.05)] hover:text-[#16151C] dark:hover:text-white'
                                         }`}

@@ -164,10 +164,25 @@ export async function aiRequest(options: AIRequestOptions) {
         ?? null;
 
     // Extract token usage from the response
-    const tokensIn = parsed.tokens_in ?? parsed.usage?.prompt_tokens ?? 0;
-    const tokensOut = parsed.tokens_out ?? parsed.usage?.completion_tokens ?? 0;
+    const usage = parsed.usage
+        ?? parsed.result?.usage
+        ?? parsed.response?.usage
+        ?? {};
+
+    const tokensIn = parsed.tokens_in
+        ?? usage.prompt_tokens
+        ?? usage.num_input_tokens // Anthropic specific
+        ?? 0;
+
+    const tokensOut = parsed.tokens_out
+        ?? usage.completion_tokens
+        ?? usage.num_output_tokens // Anthropic specific
+        ?? 0;
 
     // 4️⃣ Log usage
+    const isZeroTokens = (tokensIn + tokensOut) === 0;
+    const debugError = isZeroTokens ? `DEBUG_TOKENS_0: ${JSON.stringify(parsed).substring(0, 1000)}` : null;
+
     await supabase.from("ai_logs").insert({
         tenant_id: tenantId,
         user_id: userId,
@@ -175,17 +190,19 @@ export async function aiRequest(options: AIRequestOptions) {
         model,
         tokens_in: tokensIn,
         tokens_out: tokensOut,
-        success: parsed.success !== false,
-        error: null
+        success: parsed.success !== false && !isZeroTokens, // Mark as error if 0 tokens to see debug msg in UI
+        error: debugError
     });
 
     // 5️⃣ Write cache
-    await supabase.from("ai_cache").upsert({
-        input_hash: inputHash,
-        output,
-        model,
-        ttl_seconds: DEFAULT_TTL_SECONDS
-    });
+    if (output) {
+        await supabase.from("ai_cache").upsert({
+            input_hash: inputHash,
+            output,
+            model,
+            ttl_seconds: DEFAULT_TTL_SECONDS
+        });
+    }
 
     // Return consistent structure matching cache response format
     return {

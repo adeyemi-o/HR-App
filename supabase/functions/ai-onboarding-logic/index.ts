@@ -29,9 +29,29 @@ serve(async (req) => {
         const { employee, status } = validation.data
         const context = await getContext(req)
 
+        // Check for injected client-side instructions (System Prompt)
+        let aiInput = { employee, status };
+        let messages = undefined;
+
+        if (employee._ai_instructions) {
+            const systemPrompt = employee._ai_instructions;
+
+            // Remove instructions from the data payload to keep it clean
+            const cleanEmployee = { ...employee };
+            delete cleanEmployee._ai_instructions;
+
+            messages = [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: JSON.stringify({ employee: cleanEmployee, status }) }
+            ];
+
+            // When messages are present, we pass them as the input
+            aiInput = { messages } as any;
+        }
+
         const result = await aiRequest({
             task: "onboarding_logic",
-            input: { employee, status },
+            input: aiInput,
             tenantId: context.tenantId,
             userId: context.userId,
             feature: "ai-onboarding-logic"

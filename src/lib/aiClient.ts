@@ -50,6 +50,11 @@ async function callAI<T>(
     else if (data.response) {
         responseText = data.response;
     }
+    // Path 4: Error returned in data (e.g. from try-catch in Edge Function)
+    else if (data.error) {
+        console.error("AI returned specific error:", data.error);
+        throw new Error(typeof data.error === 'string' ? data.error : JSON.stringify(data.error));
+    }
 
     if (!responseText) {
         console.error("AI Response missing:", data);
@@ -99,11 +104,50 @@ export const aiClient = {
         );
     },
     onboardingLogic: async (employee: any, status: string) => {
-        return callAI<OnboardingSummary>(
-            'ai-onboarding-logic',
-            AIPrompts.onboardingSummary(),
-            { employee, status }
-        );
+        // Inject the prompt/schema into the employee object so the AI sees it
+        // The Edge Function strips unknown top-level keys, but 'employee' is a record(any)
+        const prompt = AIPrompts.onboardingSummary();
+        const enrichedEmployee = {
+            ...employee,
+            _ai_instructions: prompt
+        };
+
+        // Direct invoke to match Edge Function schema (expecting { employee, status })
+        const { data, error } = await supabase.functions.invoke('ai-onboarding-logic', {
+            body: { employee: enrichedEmployee, status }
+        });
+
+        if (error) throw error;
+
+        // Handle error returned in data
+        if (data && data.error) {
+            console.error("AI returned specific error:", data.error);
+            throw new Error(typeof data.error === 'string' ? data.error : JSON.stringify(data.error));
+        }
+
+        // Extract output similar to callAI logic
+        let responseText = null;
+        if (data.output) responseText = data.output;
+        else if (data.result && data.result.response) responseText = data.result.response;
+        else if (data.result) responseText = data.result;
+        else if (data.response) responseText = data.response;
+
+        if (!responseText) {
+            console.error("AI Response missing in onboarding logic:", data);
+            throw new Error("AI did not return a response.");
+        }
+
+        // Parse JSON if needed
+        if (typeof responseText === 'object') return responseText as OnboardingSummary;
+
+        try {
+            const cleanJson = responseText.replace(/```json\n?|\n?```/g, "").trim();
+            const parsed = JSON.parse(cleanJson);
+            return parsed as OnboardingSummary;
+        } catch (e) {
+            console.error("Failed to parse AI JSON:", responseText);
+            throw new Error("AI returned invalid JSON.");
+        }
     },
     wpValidation: async (group: string, user: any) => {
         // Fallback to raw call if no schema/prompt defined

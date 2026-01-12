@@ -3,9 +3,24 @@ import type { OnboardingEmployee } from '@/services/dashboardService';
 
 interface OnboardingSnapshotProps {
     employees: OnboardingEmployee[];
+    loading?: boolean;
 }
 
-export function OnboardingSnapshot({ employees }: OnboardingSnapshotProps) {
+export function OnboardingSnapshot({ employees, loading }: OnboardingSnapshotProps) {
+    if (loading) {
+        return (
+            <div className="bg-white dark:bg-card rounded-[20px] border border-[rgba(162,161,168,0.1)] dark:border-border overflow-hidden h-full min-h-[300px]">
+                <div className="p-6 border-b border-[rgba(162,161,168,0.1)] dark:border-border">
+                    <h3 className="text-[#16151C] dark:text-foreground font-semibold mb-1">Onboarding Snapshot</h3>
+                    <p className="text-sm text-[#A2A1A8] font-light">Loading progress...</p>
+                </div>
+                <div className="p-6 flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="bg-white dark:bg-card rounded-[20px] border border-[rgba(162,161,168,0.1)] dark:border-border overflow-hidden">
             <div className="p-6 border-b border-[rgba(162,161,168,0.1)] dark:border-border">

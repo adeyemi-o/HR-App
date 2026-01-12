@@ -7,9 +7,10 @@ interface SlideOverProps {
     title: string;
     children: React.ReactNode;
     width?: 'md' | 'lg' | 'xl';
+    side?: 'left' | 'right';
 }
 
-export function SlideOver({ isOpen, onClose, title, children, width = 'lg' }: SlideOverProps) {
+export function SlideOver({ isOpen, onClose, title, children, width = 'lg', side = 'right' }: SlideOverProps) {
     if (!isOpen) return null;
 
     const widthClasses = {
@@ -27,7 +28,7 @@ export function SlideOver({ isOpen, onClose, title, children, width = 'lg' }: Sl
             />
 
             {/* Slide Over Panel */}
-            <div className={`fixed top-0 right-0 h-full ${widthClasses[width]} w-full bg-white dark:bg-card shadow-2xl z-50 overflow-y-auto border-l border-[rgba(162,161,168,0.1)]`}>
+            <div className={`fixed top-0 ${side === 'right' ? 'right-0 border-l' : 'left-0 border-r'} h-full ${widthClasses[width]} w-full bg-white dark:bg-card shadow-2xl z-50 overflow-y-auto border-[rgba(162,161,168,0.1)]`}>
                 {/* Header */}
                 <div className="sticky top-0 bg-white dark:bg-card border-b border-[rgba(162,161,168,0.1)] px-6 py-4 flex items-center justify-between z-10">
                     <h2 className="text-[#16151C] dark:text-white font-semibold text-lg">{title}</h2>

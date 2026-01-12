@@ -44,17 +44,38 @@ export function Sidebar() {
     const filteredNavigation = navigation.filter(item => !item.adminOnly || isAdmin);
 
     return (
-        <div className="w-[280px] bg-[rgba(162,161,168,0.05)] h-[calc(100vh-40px)] fixed left-5 top-5 bottom-5 flex flex-col rounded-[20px] border border-sidebar-border/10 backdrop-blur-xl">
+        <SidebarContent
+            logoLight={logoForLightMode}
+            logoDark={logoForDarkMode}
+            navigation={filteredNavigation}
+            currentPath={location.pathname}
+            className="hidden lg:flex"
+        />
+    );
+}
+
+interface SidebarContentProps {
+    logoLight: string;
+    logoDark: string;
+    navigation: typeof navigation;
+    currentPath: string;
+    className?: string; // To handle hidden/flex
+    onNavigate?: () => void; // To close mobile menu on click
+}
+
+export function SidebarContent({ logoLight, logoDark, navigation, currentPath, className, onNavigate }: SidebarContentProps) {
+    return (
+        <div className={cn("w-[280px] bg-[rgba(162,161,168,0.05)] h-[calc(100vh-40px)] fixed left-5 top-5 bottom-5 flex-col rounded-[20px] border border-sidebar-border/10 backdrop-blur-xl z-20", className)}>
             {/* Logo */}
             <div className="p-[30px]">
                 <div className="flex items-center justify-center gap-2">
                     <img
-                        src={logoForLightMode}
+                        src={logoLight}
                         alt="Prolific Homecare"
                         className="max-h-[60px] w-auto max-w-full block dark:hidden"
                     />
                     <img
-                        src={logoForDarkMode}
+                        src={logoDark}
                         alt="Prolific Homecare"
                         className="max-h-[60px] w-auto max-w-full hidden dark:block"
                     />
@@ -64,12 +85,13 @@ export function Sidebar() {
             {/* Navigation */}
             <nav className="px-[30px] flex-1">
                 <ul className="space-y-[10px]">
-                    {filteredNavigation.map((item) => {
-                        const isActive = location.pathname === item.href;
+                    {navigation.map((item) => {
+                        const isActive = currentPath === item.href;
                         return (
                             <li key={item.name}>
                                 <Link
                                     to={item.href}
+                                    onClick={onNavigate}
                                     className={cn(
                                         'relative w-full flex items-center gap-4 px-5 py-[13px] rounded-r-[10px] transition-colors',
                                         isActive

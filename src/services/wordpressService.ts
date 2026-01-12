@@ -38,10 +38,10 @@ export const wordpressService = {
     /**
      * Fetches course progress for a user
      */
-    async getCourseProgress(userId: number): Promise<CourseProgress[]> {
+    async getCourseProgress(userId: number, includeTitles: boolean = true): Promise<CourseProgress[]> {
         try {
             const startTime = performance.now();
-            console.log('[getCourseProgress] Fetching progress for user:', userId);
+            console.log('[getCourseProgress] Fetching progress for user:', userId, { includeTitles });
 
             const progress = await wpClient<any[]>(`/ldlms/v2/users/${userId}/course-progress`, {
                 method: 'GET',
@@ -49,35 +49,40 @@ export const wordpressService = {
 
             console.log('[getCourseProgress] Progress data fetched in', Math.round(performance.now() - startTime), 'ms');
 
-            // Extract all unique course IDs
-            const courseIds = [...new Set(progress.map(item => item.course).filter(Boolean))];
-            console.log('[getCourseProgress] Fetching', courseIds.length, 'course titles...');
+            let courseTitleMap = new Map<number, string>();
 
-            // Fetch all courses in a single batch request (much faster!)
-            const courseFetchStart = performance.now();
-            const coursePromises = courseIds.map(id =>
-                wpClient<any>(`/ldlms/v2/sfwd-courses/${id}`, { method: 'GET' })
-                    .catch(err => {
-                        console.warn(`Failed to fetch course ${id}:`, err.message);
-                        return null;
-                    })
-            );
+            if (includeTitles) {
+                // Extract all unique course IDs
+                const courseIds = [...new Set(progress.map(item => item.course).filter(Boolean))];
+                console.log('[getCourseProgress] Fetching', courseIds.length, 'course titles...');
 
-            const courses = await Promise.all(coursePromises);
-            console.log('[getCourseProgress] All courses fetched in', Math.round(performance.now() - courseFetchStart), 'ms');
+                // Fetch all courses in a single batch request (much faster!)
+                const courseFetchStart = performance.now();
+                const coursePromises = courseIds.map(id =>
+                    wpClient<any>(`/ldlms/v2/sfwd-courses/${id}`, { method: 'GET' })
+                        .catch(err => {
+                            console.warn(`Failed to fetch course ${id}:`, err.message);
+                            return null;
+                        })
+                );
 
-            // Create a map of course ID to title for quick lookup
-            const courseTitleMap = new Map<number, string>();
-            courses.forEach((course, index) => {
-                if (course) {
-                    const rawTitle = course.title?.rendered || `Course ${courseIds[index]}`;
-                    // Decode HTML entities
-                    const decodedTitle = new DOMParser()
-                        .parseFromString(rawTitle, 'text/html')
-                        .documentElement.textContent || rawTitle;
-                    courseTitleMap.set(courseIds[index], decodedTitle);
-                }
-            });
+                const courses = await Promise.all(coursePromises);
+                console.log('[getCourseProgress] All courses fetched in', Math.round(performance.now() - courseFetchStart), 'ms');
+
+                // Create a map of course ID to title for quick lookup
+                courses.forEach((course, index) => {
+                    if (course) {
+                        const rawTitle = course.title?.rendered || `Course ${courseIds[index]}`;
+                        // Decode HTML entities
+                        const decodedTitle = new DOMParser()
+                            .parseFromString(rawTitle, 'text/html')
+                            .documentElement.textContent || rawTitle;
+                        courseTitleMap.set(courseIds[index], decodedTitle);
+                    }
+                });
+            } else {
+                console.log('[getCourseProgress] Skipping course title fetch as requested.');
+            }
 
             // Map progress data with course titles
             const progressWithTitles = progress.map(item => {
