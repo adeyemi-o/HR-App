@@ -1,5 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { render } from "npm:@react-email/render@0.0.7";
+import * as React from "npm:react@18.3.1";
+import { RequirementRequestEmail } from "../_shared/emails/RequirementRequestEmail.tsx";
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -38,10 +41,27 @@ serve(async (req) => {
             })
         }
 
-        // 3. Send Email via Brevo
-        const BREVO_API_KEY = Deno.env.get('BREVO_API_KEY')
+        // 3. Fetch Brevo API Key from Settings (using Service Role)
+        const supabaseAdmin = createClient(
+            Deno.env.get('SUPABASE_URL') ?? '',
+            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+        )
+
+        const { data: settingsList } = await supabaseAdmin
+            .from('settings')
+            .select('key, value')
+            .in('key', ['brevo_api_key', 'logo_light'])
+
+        const settingsMap = settingsList?.reduce((acc: any, curr: any) => {
+            acc[curr.key] = curr.value;
+            return acc;
+        }, {} as Record<string, string>) || {};
+
+        const BREVO_API_KEY = settingsMap['brevo_api_key'];
+        const logoUrl = settingsMap['logo_light'];
+
         if (!BREVO_API_KEY) {
-            throw new Error('BREVO_API_KEY not configured')
+            throw new Error('Brevo API Key not configured in settings')
         }
 
         console.log(`Sending ${formName} request to ${email}...`)
@@ -60,20 +80,14 @@ serve(async (req) => {
                 },
                 to: [{ email: email, name: name || email }],
                 subject: `Action Required: Please submit your ${formName}`,
-                htmlContent: `
-                    <div style="font-family: Arial, sans-serif; color: #333;">
-                        <h1 style="color: #7152F3;">Document Request</h1>
-                        <p>Hello ${name || 'Applicant'},</p>
-                        <p>We are missing your <strong>${formName}</strong> for your application at Prolific Homecare.</p>
-                        <p>Please click the button below to complete and submit the form as soon as possible:</p>
-                        <br/>
-                        <a href="${formUrl}" style="background-color: #7152F3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Complete ${formName}</a>
-                        <br/><br/>
-                        <p style="font-size: 12px; color: #666;">If the button doesn't work, copy and paste this link into your browser:<br/>${formUrl}</p>
-                        <br/>
-                        <p>Best regards,<br/>Prolific Homecare HR Team</p>
-                    </div>
-                `
+                htmlContent: await render(
+                    React.createElement(RequirementRequestEmail, {
+                        applicantName: name || 'Applicant',
+                        missingItems: [formName],
+                        uploadUrl: formUrl,
+                        logoUrl: logoUrl || undefined
+                    })
+                )
             })
         })
 

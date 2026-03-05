@@ -1,76 +1,228 @@
-import { LayoutDashboard, Users, FileText, Briefcase, Settings } from 'lucide-react';
+import { useState } from 'react';
+import { LayoutDashboard, Users, FileText, Briefcase, Settings, Sparkles, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useSidebar } from './SidebarContext';
 
-import logoLight from '@/assets/logo-light.png';
-import logoDark from '@/assets/logo-dark.png';
-
-const navigation = [
-    { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-    { name: 'Applicants', href: '/applicants', icon: Users },
-    { name: 'Offers', href: '/offers', icon: FileText },
-    { name: 'Employees', href: '/employees', icon: Briefcase },
-    { name: 'Settings', href: '/settings', icon: Settings, adminOnly: true },
+const navGroups = [
+    {
+        label: 'Overview',
+        items: [
+            { name: 'Dashboard', href: '/', icon: LayoutDashboard, adminOnly: false, isAI: false },
+        ],
+    },
+    {
+        label: 'Hiring',
+        items: [
+            { name: 'Applicants', href: '/applicants', icon: Users,     adminOnly: false, isAI: false },
+            { name: 'Offers',     href: '/offers',     icon: FileText,  adminOnly: false, isAI: false },
+        ],
+    },
+    {
+        label: 'Workforce',
+        items: [
+            { name: 'Employees', href: '/employees', icon: Briefcase, adminOnly: false, isAI: false },
+        ],
+    },
+    {
+        label: 'AI & Admin',
+        items: [
+            { name: 'AI Dashboard', href: '/admin/ai-dashboard', icon: Sparkles, adminOnly: true,  isAI: true },
+            { name: 'Settings',     href: '/settings',           icon: Settings,  adminOnly: true,  isAI: false },
+        ],
+    },
 ];
 
 export function Sidebar() {
     const location = useLocation();
     const { isAdmin } = useUserRole();
+    const { expanded, pinned, togglePin, setHovered } = useSidebar();
+    const [tooltipItem, setTooltipItem] = useState<string | null>(null);
 
-    const filteredNavigation = navigation.filter(item => !item.adminOnly || isAdmin);
+    const currentPath = location.pathname;
 
     return (
-        <div className="w-[280px] bg-[rgba(162,161,168,0.05)] h-[calc(100vh-40px)] fixed left-5 top-5 bottom-5 flex flex-col rounded-[20px] border border-sidebar-border/10 backdrop-blur-xl">
-            {/* Logo */}
-            <div className="p-[30px]">
+        <aside
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => { setHovered(false); setTooltipItem(null); }}
+            className={cn(
+                'fixed left-0 top-[56px] bottom-0 z-20 hidden lg:flex flex-col',
+                'sidebar-transition',
+                expanded ? 'w-[248px]' : 'w-[56px]',
+            )}
+            style={{
+                background: 'var(--sidebar)',
+                borderRight: '1px solid var(--sidebar-border)',
+            }}
+        >
+            {/* ── Navigation ── */}
+            <nav className="flex-1 overflow-y-auto overflow-x-hidden py-2 px-2">
+                {navGroups.map((group, gi) => {
+                    const visibleItems = group.items.filter(item => !item.adminOnly || isAdmin);
+                    if (visibleItems.length === 0) return null;
+
+                    return (
+                        <div key={group.label} className={gi > 0 ? 'mt-1' : ''}>
+                            {/* Group separator line */}
+                            {gi > 0 && (
+                                <div
+                                    className="mx-2 my-1"
+                                    style={{ height: '1px', background: 'var(--sidebar-border)' }}
+                                />
+                            )}
+
+                            {/* Group label — only in expanded mode */}
+                            {expanded && (
+                                <p
+                                    className="px-2 pt-1.5 pb-0.5 select-none"
+                                    style={{
+                                        fontFamily: 'var(--font-mono)',
+                                        fontSize: '0.5625rem',
+                                        fontWeight: 500,
+                                        letterSpacing: '0.10em',
+                                        textTransform: 'uppercase',
+                                        color: 'var(--sidebar-foreground)',
+                                        opacity: 0.35,
+                                    }}
+                                >
+                                    {group.label}
+                                </p>
+                            )}
+
+                            <ul className="space-y-[1px]">
+                                {visibleItems.map((item) => {
+                                    const isActive = item.href === '/'
+                                        ? currentPath === '/'
+                                        : currentPath === item.href || currentPath.startsWith(item.href + '/');
+
+                                    return (
+                                        <li
+                                            key={item.name}
+                                            className="relative"
+                                            onMouseEnter={() => !expanded && setTooltipItem(item.name)}
+                                            onMouseLeave={() => setTooltipItem(null)}
+                                        >
+                                            <Link
+                                                to={item.href}
+                                                className={cn(
+                                                    'group relative flex items-center gap-2.5 rounded-md transition-all duration-100',
+                                                    expanded ? 'px-2.5 py-[7px] w-full' : 'h-9 w-9 mx-auto justify-center',
+                                                    isActive
+                                                        ? 'text-[hsl(0_0%_92%)] bg-[hsl(0_0%_100%_/_0.07)]'
+                                                        : 'text-[var(--sidebar-foreground)] hover:text-[hsl(0_0%_82%)] hover:bg-[hsl(0_0%_100%_/_0.04)]'
+                                                )}
+                                            >
+                                                <item.icon
+                                                    size={14}
+                                                    strokeWidth={isActive ? 2 : 1.75}
+                                                    className="flex-shrink-0 transition-colors"
+                                                    style={{ color: isActive ? 'hsl(196 84% 55%)' : 'currentColor' }}
+                                                />
+
+                                                {expanded && (
+                                                    <span
+                                                        className="text-[13px] leading-none whitespace-nowrap flex-1"
+                                                        style={{ fontWeight: isActive ? 500 : 400 }}
+                                                    >
+                                                        {item.name}
+                                                    </span>
+                                                )}
+
+                                                {expanded && item.isAI && (
+                                                    <span className="ai-tag ml-auto">AI</span>
+                                                )}
+                                            </Link>
+
+                                            {/* Collapsed tooltip */}
+                                            {!expanded && tooltipItem === item.name && (
+                                                <div
+                                                    className="absolute top-1/2 -translate-y-1/2 left-[60px] flex items-center gap-2 px-2.5 py-1.5 rounded-md whitespace-nowrap z-50 pointer-events-none"
+                                                    style={{
+                                                        background: 'hsl(0 0% 13%)',
+                                                        border: '1px solid hsl(0 0% 20%)',
+                                                        color: 'hsl(0 0% 88%)',
+                                                        fontSize: '12px',
+                                                        fontWeight: 500,
+                                                        boxShadow: 'var(--shadow-lg)',
+                                                    }}
+                                                >
+                                                    {item.name}
+                                                    {item.isAI && <span className="ai-tag ml-1">AI</span>}
+                                                </div>
+                                            )}
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        </div>
+                    );
+                })}
+            </nav>
+
+            {/* ── System status ── */}
+            <div
+                className={cn('py-3', expanded ? 'px-4' : 'flex justify-center px-0')}
+                style={{ borderTop: '1px solid var(--sidebar-border)' }}
+            >
                 <div className="flex items-center gap-2">
-                    <img
-                        src={logoDark}
-                        alt="Prolific Homecare"
-                        className="h-[60px] w-auto block dark:hidden"
-                    />
-                    <img
-                        src={logoLight}
-                        alt="Prolific Homecare"
-                        className="h-[60px] w-auto hidden dark:block"
-                    />
+                    <div className="relative flex h-1.5 w-1.5 flex-shrink-0">
+                        <span
+                            className="animate-dot-ping absolute inline-flex h-full w-full rounded-full opacity-60"
+                            style={{ background: 'hsl(142 60% 48%)' }}
+                        />
+                        <span
+                            className="relative inline-flex rounded-full h-1.5 w-1.5"
+                            style={{ background: 'hsl(142 60% 48%)' }}
+                        />
+                    </div>
+                    {expanded && (
+                        <span
+                            className="text-[10px] font-medium truncate"
+                            style={{ fontFamily: 'var(--font-mono)', letterSpacing: '0.05em', color: 'hsl(0 0% 30%)' }}
+                        >
+                            All systems operational
+                        </span>
+                    )}
                 </div>
             </div>
 
-            {/* Navigation */}
-            <nav className="px-[30px] flex-1">
-                <ul className="space-y-[10px]">
-                    {filteredNavigation.map((item) => {
-                        const isActive = location.pathname === item.href;
-                        return (
-                            <li key={item.name}>
-                                <Link
-                                    to={item.href}
-                                    className={cn(
-                                        'relative w-full flex items-center gap-4 px-5 py-[13px] rounded-r-[10px] transition-colors',
-                                        isActive
-                                            ? 'bg-[rgba(113,82,243,0.05)] text-[#7152F3]'
-                                            : 'text-[#16151C] dark:text-gray-400 hover:bg-[rgba(113,82,243,0.02)]'
-                                    )}
-                                >
-                                    {isActive && (
-                                        <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-[#7152F3] rounded-r-[10px]" />
-                                    )}
-                                    <item.icon size={20} strokeWidth={isActive ? 2 : 1.5} />
-                                    <span className={isActive ? 'font-semibold' : 'font-light'}>{item.name}</span>
-                                </Link>
-                            </li>
-                        );
-                    })}
-                </ul>
-            </nav>
+            {/* ── Theme + pin ── */}
+            <div
+                className={cn(
+                    'py-2',
+                    expanded ? 'px-2 flex flex-col gap-1' : 'px-1.5 flex flex-col gap-1 items-center'
+                )}
+                style={{ borderTop: '1px solid var(--sidebar-border)' }}
+            >
+                {expanded && <ThemeToggle />}
 
-            {/* Mode Toggle */}
-            <div className="p-[30px]">
-                <ThemeToggle />
+                <button
+                    onClick={togglePin}
+                    title={pinned ? 'Unpin sidebar' : 'Pin sidebar open'}
+                    className={cn(
+                        'flex items-center justify-center gap-2 rounded-md transition-all duration-100',
+                        'text-[hsl(0_0%_28%)] hover:text-[hsl(0_0%_52%)] hover:bg-[hsl(0_0%_100%_/_0.04)]',
+                        expanded ? 'w-full h-8 px-2.5' : 'w-9 h-8'
+                    )}
+                >
+                    {pinned
+                        ? <PanelLeftClose size={13} strokeWidth={2} />
+                        : <PanelLeftOpen  size={13} strokeWidth={2} />
+                    }
+                    {expanded && (
+                        <span
+                            className="text-[10px]"
+                            style={{ fontFamily: 'var(--font-mono)', letterSpacing: '0.06em', textTransform: 'uppercase' }}
+                        >
+                            {pinned ? 'Collapse' : 'Pin open'}
+                        </span>
+                    )}
+                </button>
             </div>
-        </div>
+        </aside>
     );
 }
+
+export { navGroups };

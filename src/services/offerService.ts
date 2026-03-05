@@ -34,10 +34,31 @@ export const offerService = {
         return data as Offer;
     },
 
+    async updateOffer(id: string, updates: Partial<Offer>) {
+        const { data, error } = await supabase
+            .from('offers')
+            .update(updates)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data as Offer;
+    },
+
     async updateStatus(id: string, status: string) {
         const { error } = await supabase
             .from('offers')
             .update({ status })
+            .eq('id', id);
+
+        if (error) throw error;
+    },
+
+    async deleteOffer(id: string) {
+        const { error } = await supabase
+            .from('offers')
+            .delete()
             .eq('id', id);
 
         if (error) throw error;

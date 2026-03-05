@@ -1,5 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { render } from "npm:@react-email/render@0.0.7";
+import * as React from "npm:react@18.3.1";
+import { OfferEmail } from "../_shared/emails/OfferEmail.tsx";
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -140,8 +143,20 @@ serve(async (req) => {
             throw new Error(`Failed to create offer: ${offerError.message}`)
         }
 
-        // 6. Send Email via Brevo
-        const BREVO_API_KEY = Deno.env.get('BREVO_API_KEY')
+        // 6. Send Email via Brevo (Using Settings)
+        const { data: settingsList } = await supabaseAdmin
+            .from('settings')
+            .select('key, value')
+            .in('key', ['brevo_api_key', 'logo_light'])
+
+        const settingsMap = settingsList?.reduce((acc: any, curr: any) => {
+            acc[curr.key] = curr.value;
+            return acc;
+        }, {} as Record<string, string>) || {};
+
+        const BREVO_API_KEY = settingsMap['brevo_api_key'];
+        const logoUrl = settingsMap['logo_light'];
+
         if (BREVO_API_KEY) {
             console.log(`Sending email to ${email} via Brevo...`)
             const emailResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
@@ -158,15 +173,16 @@ serve(async (req) => {
                     },
                     to: [{ email: email, name: `${firstName} ${lastName}` }],
                     subject: `Job Offer: ${position} at Prolific Homecare`,
-                    htmlContent: `
-                        <h1>Congratulations ${firstName}!</h1>
-                        <p>We are pleased to offer you the position of <strong>${position}</strong> at Prolific Homecare.</p>
-                        <p><strong>Start Date:</strong> ${startDate}</p>
-                        <p><strong>Salary/Rate:</strong> $${salary}</p>
-                        <br/>
-                        <p>Please review the attached offer details (link coming soon).</p>
-                        <p>Best regards,<br/>Prolific Homecare HR Team</p>
-                    `
+                    htmlContent: await render(
+                        React.createElement(OfferEmail, {
+                            applicantName: `${firstName} ${lastName}`,
+                            position: position,
+                            startDate: startDate,
+                            dailyRate: salary, // Mapping salary input to dailyRate as per new template
+                            offerUrl: `https://prolific-hr.com/offers/${offer.secure_token}`,
+                            logoUrl: logoUrl || undefined
+                        })
+                    )
                 })
             })
 
@@ -179,18 +195,15 @@ serve(async (req) => {
                 console.log('Email sent successfully via Brevo')
             }
         } else {
-            console.warn('BREVO_API_KEY not found, skipping email send.')
+            console.warn('BREVO_API_KEY not found in settings, skipping email send.')
         }
 
         return new Response(JSON.stringify({ success: true, offer }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("General Error:", error)
-        // Return 200 with error property to avoid client-side generic 400/500 errors if possible, 
-        // matching invite-user pattern for handled errors, but keeping 400/500 for critical ones if preferred.
-        // invite-user returns 200 with error body for logic errors.
         return new Response(JSON.stringify({ error: error.message }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 400,
