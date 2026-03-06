@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
-export type UserRole = 'admin' | 'hr' | 'staff';
+export type UserRole = 'platform_admin' | 'tenant_admin' | 'hr_admin';
 
 export function useUserRole() {
     const [role, setRole] = useState<UserRole | null>(null);
@@ -10,22 +10,15 @@ export function useUserRole() {
     useEffect(() => {
         const fetchRole = async () => {
             try {
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user) {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session) {
                     setLoading(false);
                     return;
                 }
 
-                const { data, error } = await supabase
-                    .from('profiles')
-                    .select('role')
-                    .eq('id', user.id)
-                    .single();
-
-                if (error) {
-                    console.error('Error fetching user role:', error);
-                } else if (data) {
-                    setRole(data.role as UserRole);
+                const appMetaRole = session.user.app_metadata?.role as UserRole | undefined;
+                if (appMetaRole) {
+                    setRole(appMetaRole);
                 }
             } catch (error) {
                 console.error('Failed to fetch role:', error);
@@ -35,7 +28,23 @@ export function useUserRole() {
         };
 
         fetchRole();
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            const appMetaRole = session?.user.app_metadata?.role as UserRole | undefined;
+            setRole(appMetaRole ?? null);
+        });
+
+        return () => subscription.unsubscribe();
     }, []);
 
-    return { role, loading, isAdmin: role === 'admin', isHR: role === 'hr', isStaff: role === 'staff' };
+    const isAdmin = role === 'platform_admin' || role === 'tenant_admin';
+
+    return {
+        role,
+        loading,
+        isAdmin,
+        isPlatformAdmin: role === 'platform_admin',
+        isTenantAdmin: role === 'tenant_admin',
+        isHRAdmin: role === 'hr_admin',
+    };
 }

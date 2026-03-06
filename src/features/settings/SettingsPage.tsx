@@ -144,7 +144,7 @@ export function SettingsPage() {
         last_name: '',
         email: '',
         phone_number: '',
-        role: 'staff' as 'admin' | 'hr' | 'staff',
+        role: 'hr_admin' as 'platform_admin' | 'tenant_admin' | 'hr_admin',
         password: ''
     });
     const [editLoading, setEditLoading] = useState(false);
@@ -595,9 +595,9 @@ export function SettingsPage() {
                                                         <span
                                                             className="inline-flex items-center h-5 px-2 rounded text-[10px] font-mono font-semibold uppercase tracking-[0.04em]"
                                                             style={
-                                                                user.role === 'admin'
+                                                                (user.role === 'platform_admin' || user.role === 'tenant_admin')
                                                                     ? { color: 'hsl(196 84% 60%)', background: 'hsl(196 84% 42% / 0.10)', border: '1px solid hsl(196 84% 42% / 0.20)' }
-                                                                    : user.role === 'hr'
+                                                                    : user.role === 'hr_admin'
                                                                         ? { color: 'hsl(260 54% 68%)', background: 'hsl(260 54% 52% / 0.10)', border: '1px solid hsl(260 54% 52% / 0.20)' }
                                                                         : { color: 'hsl(0 0% 44%)', background: 'hsl(0 0% 100% / 0.04)', border: '1px solid hsl(0 0% 100% / 0.08)' }
                                                             }
@@ -652,7 +652,7 @@ export function SettingsPage() {
                                             </div>
                                             <div>
                                                 <label className={labelCls}>Role</label>
-                                                <select value={editFormData.role} onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value as 'admin' | 'hr' | 'staff' })} className={inputCls}>
+                                                <select value={editFormData.role} onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value as 'platform_admin' | 'tenant_admin' | 'hr_admin' })} className={inputCls}>
                                                     <option value="staff">Staff</option>
                                                     <option value="hr">HR</option>
                                                     <option value="admin">Admin</option>

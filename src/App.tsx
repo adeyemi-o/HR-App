@@ -48,7 +48,7 @@ function App() {
               <Route path="offers" element={<OfferList />} />
               <Route path="offers/new" element={<OfferEditor />} />
               <Route path="employees" element={<EmployeeList />} />
-              <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+              <Route element={<ProtectedRoute allowedRoles={['platform_admin', 'tenant_admin']} />}>
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="settings/connectors" element={<ConnectorSettingsPage />} />
                 <Route path="settings/ld-mappings" element={<LdGroupMappingsPage />} />
