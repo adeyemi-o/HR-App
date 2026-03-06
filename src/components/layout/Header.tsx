@@ -87,8 +87,8 @@ export function Header({ onOpenMobileNav }: HeaderProps) {
                 {/* Logo — only when expanded */}
                 {expanded && (
                     <>
-                        <img src={logoLight} alt="Prolific HR" className="h-5 w-auto object-contain block dark:hidden min-w-0 max-w-[130px]" />
-                        <img src={logoDark}  alt="Prolific HR" className="h-5 w-auto object-contain hidden dark:block min-w-0 max-w-[130px]" />
+                        <img src={logoLight} alt="HOMS" className="h-5 w-auto object-contain block dark:hidden min-w-0 max-w-[130px]" />
+                        <img src={logoDark}  alt="HOMS" className="h-5 w-auto object-contain hidden dark:block min-w-0 max-w-[130px]" />
                     </>
                 )}
             </div>

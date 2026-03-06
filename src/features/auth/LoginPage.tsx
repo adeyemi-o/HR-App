@@ -57,7 +57,7 @@ export function LoginPage() {
                     >
                         <img
                             src="https://bucket-ivvnia.s3.amazonaws.com/wp-content/uploads/2025/06/02222211/Prolific-Homecare-Logo.png"
-                            alt="Prolific Homecare"
+                            alt="HOMS"
                             className="mx-auto h-14 w-auto object-contain mb-5"
                         />
                         <h1
@@ -71,7 +71,7 @@ export function LoginPage() {
                                 lineHeight: 1.2,
                             }}
                         >
-                            HR Command Centre
+                            HOMS
                         </h1>
                         <p
                             style={{
@@ -83,7 +83,7 @@ export function LoginPage() {
                                 marginTop: '4px',
                             }}
                         >
-                            Prolific Homecare LLC
+                            Healthcare Operations Management System
                         </p>
                     </div>
 
@@ -258,7 +258,7 @@ export function LoginPage() {
                         color: 'hsl(0 0% 24%)',
                     }}
                 >
-                    Authorized personnel only — Prolific Homecare LLC
+                    Authorized personnel only — Healthcare Operations Management System
                 </p>
             </div>
         </div>

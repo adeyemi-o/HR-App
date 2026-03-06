@@ -50,8 +50,8 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
                     className="flex items-center px-5 h-[60px] flex-shrink-0"
                     style={{ borderBottom: '1px solid var(--sidebar-border)' }}
                 >
-                    <img src={logoLight} alt="Prolific HR" className="h-7 w-auto object-contain block dark:hidden" />
-                    <img src={logoDark}  alt="Prolific HR" className="h-7 w-auto object-contain hidden dark:block" />
+                    <img src={logoLight} alt="HOMS" className="h-7 w-auto object-contain block dark:hidden" />
+                    <img src={logoDark}  alt="HOMS" className="h-7 w-auto object-contain hidden dark:block" />
                 </div>
 
                 {/* Nav */}

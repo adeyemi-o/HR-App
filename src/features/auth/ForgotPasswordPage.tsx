@@ -59,7 +59,7 @@ export function ForgotPasswordPage() {
                     >
                         <img
                             src="https://bucket-ivvnia.s3.amazonaws.com/wp-content/uploads/2025/06/02222211/Prolific-Homecare-Logo.png"
-                            alt="Prolific Homecare"
+                            alt="HOMS"
                             className="mx-auto h-14 w-auto object-contain mb-5"
                         />
                         <h1
@@ -217,7 +217,7 @@ export function ForgotPasswordPage() {
                         color: 'hsl(0 0% 24%)',
                     }}
                 >
-                    Authorized personnel only — Prolific Homecare LLC
+                    Authorized personnel only
                 </p>
             </div>
         </div>

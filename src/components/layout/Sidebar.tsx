@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LayoutDashboard, Users, FileText, Briefcase, Settings, Sparkles, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Briefcase, Settings, Sparkles, PanelLeftClose, PanelLeftOpen, Plug, BookOpen, UserCog } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -31,6 +31,9 @@ const navGroups = [
         items: [
             { name: 'AI Dashboard', href: '/admin/ai-dashboard', icon: Sparkles, adminOnly: true,  isAI: true },
             { name: 'Settings',     href: '/settings',           icon: Settings,  adminOnly: true,  isAI: false },
+            { name: 'Connectors',   href: '/settings/connectors', icon: Plug,      adminOnly: true,  isAI: false },
+            { name: 'LD Mappings',  href: '/settings/ld-mappings', icon: BookOpen,  adminOnly: true,  isAI: false },
+            { name: 'Users',        href: '/settings/users',       icon: UserCog,   adminOnly: true,  isAI: false },
         ],
     },
 ];

@@ -101,7 +101,7 @@ export const AIPrompts = {
   `,
 
     setupHelper: () => `
-    You are a System Administrator for the Prolific HR Command Centre.
+    You are a System Administrator for the HOMS.
     Your task is to provide advice on system configuration based on the user's query.
     
     You MUST respond with valid JSON only. No prose outside the JSON.
